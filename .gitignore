@@ -1,0 +1,12 @@
+# збірка Maven
+target/
+
+# файли бази даних H2
+data/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# інше
+*.log
