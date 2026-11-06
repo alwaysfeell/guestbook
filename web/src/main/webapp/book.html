@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <title>Книга</title>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: 2rem auto; }
+    li { margin: .4rem 0; }
+    .date { color: #777; font-size: .85em; }
+    .error { color: #b00020; }
+  </style>
+</head>
+<body>
+<p><a href="./">&larr; До каталогу</a></p>
+<h1 id="title">...</h1>
+<p id="meta"></p>
+
+<h3>Відгуки</h3>
+<ul id="comments"></ul>
+<p class="error" id="error"></p>
+
+<h3>Додати відгук</h3>
+<form id="add">
+  <input name="author" placeholder="Ваше ім'я" required maxlength="64">
+  <input name="text" placeholder="Ваш відгук" required maxlength="1000" style="width:50%">
+  <button>Надіслати</button>
+</form>
+
+<script>
+  const bookId = new URLSearchParams(location.search).get('id');
+
+  async function load() {
+    const r = await fetch('books/' + encodeURIComponent(bookId) + '?size=50');
+    const data = await r.json();
+    if (!r.ok) { showError(data); document.getElementById('title').textContent = 'Книгу не знайдено'; return; }
+
+    document.title = data.book.title;
+    document.getElementById('title').textContent = data.book.title;
+    document.getElementById('meta').textContent = `${data.book.author}, ${data.book.pubYear}`;
+
+    const ul = document.getElementById('comments');
+    ul.innerHTML = '';
+    if (data.comments.items.length === 0) { ul.innerHTML = '<li>Ще немає відгуків</li>'; }
+    data.comments.items.forEach(c => {
+      const li = document.createElement('li');
+      const b = document.createElement('b');
+      b.textContent = c.author + ': ';
+      const date = document.createElement('span');
+      date.className = 'date';
+      date.textContent = ' (' + new Date(c.createdAt).toLocaleString('uk-UA') + ') ';
+      const del = document.createElement('button');
+      del.textContent = 'Видалити';
+      del.onclick = () => remove(c.id);
+      li.append(b, c.text, date, del);
+      ul.appendChild(li);
+    });
+  }
+
+  async function remove(commentId) {
+    const r = await fetch(`comments/${commentId}?bookId=${bookId}`, { method: 'DELETE' });
+    if (r.ok) { showError(null); load(); } else { showError(await r.json()); }
+  }
+
+  function showError(err) {
+    document.getElementById('error').textContent = err ? `${err.status} ${err.error}: ${err.message}` : '';
+  }
+
+  document.getElementById('add').addEventListener('submit', async e => {
+    e.preventDefault();
+    const body = new URLSearchParams(new FormData(e.target));
+    body.set('bookId', bookId);
+    const r = await fetch('comments', { method: 'POST', body });
+    if (r.ok) { e.target.reset(); showError(null); load(); } else { showError(await r.json()); }
+  });
+
+  load();
+</script>
+</body>
+</html>

@@ -5,19 +5,47 @@
          version="5.0">
 
     <listener>
-        <listener-class>app.web.AppInit</listener-class>
+        <listener-class>sumdu.edu.ua.config.AppInit</listener-class>
     </listener>
 
-    <servlet>
-        <servlet-name>comments</servlet-name>
-        <servlet-class>app.web.CommentsServlet</servlet-class>
-        <multipart-config/>
-    </servlet>
+    <filter>
+        <filter-name>ErrorFilter</filter-name>
+        <filter-class>sumdu.edu.ua.web.error.ErrorFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>ErrorFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
 
+    <servlet>
+        <servlet-name>BooksServlet</servlet-name>
+        <servlet-class>sumdu.edu.ua.web.http.BooksServlet</servlet-class>
+    </servlet>
     <servlet-mapping>
-        <servlet-name>comments</servlet-name>
-        <url-pattern>/comments</url-pattern>
+        <servlet-name>BooksServlet</servlet-name>
+        <url-pattern>/books/*</url-pattern>
     </servlet-mapping>
+
+    <servlet>
+        <servlet-name>CommentsServlet</servlet-name>
+        <servlet-class>sumdu.edu.ua.web.http.CommentsServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>CommentsServlet</servlet-name>
+        <url-pattern>/comments/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>ErrorPageServlet</servlet-name>
+        <servlet-class>sumdu.edu.ua.web.error.ErrorPageServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ErrorPageServlet</servlet-name>
+        <url-pattern>/error</url-pattern>
+    </servlet-mapping>
+    <error-page>
+        <location>/error</location>
+    </error-page>
 
     <welcome-file-list>
         <welcome-file>index.html</welcome-file>
