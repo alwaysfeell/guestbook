@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <title>Каталог книг (Javalin)</title>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: 2rem auto; }
+    li { margin: .3rem 0; }
+    .error { color: #b00020; }
+    #comments { border-top: 1px solid #ccc; margin-top: 1rem; padding-top: .5rem; }
+  </style>
+</head>
+<body>
+<h1>Каталог книг (Javalin REST API)</h1>
+
+<form id="search">
+  <input name="q" placeholder="Пошук за назвою або автором">
+  <button>Знайти</button>
+</form>
+<ul id="book-list"></ul>
+<p class="error" id="error"></p>
+
+<div id="comments" hidden>
+  <h3 id="book-title"></h3>
+  <ul id="comment-list"></ul>
+  <form id="add">
+    <input name="author" placeholder="Ваше ім'я" required maxlength="64">
+    <input name="text" placeholder="Ваш відгук" required maxlength="1000" style="width:50%">
+    <button>Додати відгук</button>
+  </form>
+</div>
+
+<script>
+  let currentBook = null;
+
+  function showError(err) {
+    document.getElementById('error').textContent = err ? `${err.status} ${err.error}: ${err.message}` : '';
+  }
+
+  async function loadBooks() {
+    const q = new FormData(document.getElementById('search')).get('q');
+    const response = await fetch('/api/books?size=100&q=' + encodeURIComponent(q));
+    const data = await response.json();
+    if (!response.ok) { showError(data); return; }
+    showError(null);
+
+    const list = document.getElementById('book-list');
+    list.innerHTML = '';
+    for (const book of data.items) {
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = '#';
+      link.textContent = `${book.title} — ${book.author} (${book.pubYear})`;
+      link.onclick = e => { e.preventDefault(); openBook(book); };
+      item.appendChild(link);
+      list.appendChild(item);
+    }
+  }
+
+  async function openBook(book) {
+    currentBook = book;
+    document.getElementById('comments').hidden = false;
+    document.getElementById('book-title').textContent = 'Відгуки: ' + book.title;
+    const response = await fetch(`/api/books/${book.id}/comments?size=50`);
+    const data = await response.json();
+    if (!response.ok) { showError(data); return; }
+
+    const list = document.getElementById('comment-list');
+    list.innerHTML = data.items.length ? '' : '<li>Ще немає відгуків</li>';
+    for (const c of data.items) {
+      const item = document.createElement('li');
+      item.textContent = `${c.author}: ${c.text} `;
+      const del = document.createElement('button');
+      del.textContent = 'Видалити';
+      del.onclick = () => deleteComment(c.id);
+      item.appendChild(del);
+      list.appendChild(item);
+    }
+  }
+
+  async function deleteComment(id) {
+    const response = await fetch(`/api/comments/${id}?bookId=${currentBook.id}`, { method: 'DELETE' });
+    if (!response.ok) { showError(await response.json()); return; }
+    showError(null);
+    openBook(currentBook);
+  }
+
+  document.getElementById('search').addEventListener('submit', e => { e.preventDefault(); loadBooks(); });
+
+  document.getElementById('add').addEventListener('submit', async e => {
+    e.preventDefault();
+    const form = new FormData(e.target);
+    const response = await fetch('/api/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookId: currentBook.id, author: form.get('author'), text: form.get('text') })
+    });
+    if (!response.ok) { showError(await response.json()); return; }
+    showError(null);
+    e.target.reset();
+    openBook(currentBook);
+  });
+
+  loadBooks();
+</script>
+</body>
+</html>

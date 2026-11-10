@@ -5,8 +5,42 @@
 | Лабораторна | Що зроблено | Де код |
 |---|---|---|
 | №1 | Базовий застосунок «Книга відгуків» (один модуль WAR) | тег [`lab1`](https://github.com/alwaysfeell/guestbook/tree/lab1) |
-| №2 | Трирівнева архітектура: модулі core / persistence / web, каталог книг, пошук, пагінація, правило видалення за 24 години, ArchUnit | гілка `main` |
+| №2 | Трирівнева архітектура: модулі core / persistence / web, каталог книг, пошук, пагінація, правило видалення за 24 години, ArchUnit | тег [`lab2`](https://github.com/alwaysfeell/guestbook/tree/lab2) |
+| №3 | HTTP-рівень на мікрофреймворку Javalin: REST-маршрути, Context, middleware, app.exception() | гілка [`lab3`](https://github.com/alwaysfeell/guestbook/tree/lab3) |
  
+---
+
+# Лабораторна робота №3 — мікрофреймворк Javalin
+
+Модулі `core` і `persistence` не змінювались. У модулі `web` додано Javalin 6.2.0:
+клас запуску `sumdu.edu.ua.web.JavalinBookApp` і контролери в пакеті `sumdu.edu.ua.web.javalin`.
+Сервлетна версія з Лаб 2 залишилась у проєкті для порівняння.
+
+## Запуск
+```bash
+mvn clean install
+mvn -pl web exec:java        # Javalin-версія
+mvn -pl web jetty:run        # сервлетна версія, запускати не одночасно - обидві на порту 8080
+```
+Після старту: http://localhost:8080/ (HTML-клієнт REST API). Зупинка: `Ctrl+C`.
+
+## REST API
+| Метод | URL | Опис | Коди |
+|---|---|---|---|
+| GET | `/api/books?q=&page=&size=&sort=` | список книг (query-параметри) | 200, 400 |
+| GET | `/api/books/{id}` | одна книга (path-параметр) | 200, 400, 404 |
+| POST | `/api/books` | додати книгу, JSON `{"title","author","pubYear"}` | 201, 400 |
+| GET | `/api/books/{bookId}/comments?page=&size=` | відгуки книги | 200, 400, 404 |
+| POST | `/api/comments` | додати відгук, JSON `{"bookId","author","text"}` | 201, 400, 404 |
+| DELETE | `/api/comments/{id}?bookId=` | видалити відгук (лише протягом 24 год) | 204, 400, 404, 409 |
+
+Помилки повертаються у форматі `ApiError`; збій БД — 500 `Internal server error`.
+
+## Middleware і обробка винятків
+- `app.before()` — INFO-лог кожного запиту: `GET /api/books`;
+- `app.after()` — INFO-лог зі статусом: `GET /api/books -> 200`;
+- `app.exception()` — ValidationException → 400, NotFoundException → 404, ConflictException → 409, будь-який інший виняток → 500 (ERROR-лог).
+
 ---
 
 # Лабораторна робота №2 — трирівнева архітектура
