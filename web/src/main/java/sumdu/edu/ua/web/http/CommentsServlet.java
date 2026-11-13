@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sumdu.edu.ua.core.domain.Comment;
-import sumdu.edu.ua.core.domain.PageRequest;
 import sumdu.edu.ua.core.exception.NotFoundException;
 import sumdu.edu.ua.core.service.CommentService;
 
@@ -15,11 +14,12 @@ import java.io.IOException;
 public class CommentsServlet extends HttpServlet {
     private static final Logger log = LoggerFactory.getLogger(CommentsServlet.class);
 
-    private CommentService comments;
+    private final CommentService comments;
+    private final int defaultPageSize;
 
-    @Override
-    public void init() {
-        comments = HttpSupport.bean(getServletContext(), CommentService.class);
+    public CommentsServlet(CommentService comments, int defaultPageSize) {
+        this.comments = comments;
+        this.defaultPageSize = defaultPageSize;
     }
 
     @Override
@@ -28,7 +28,7 @@ public class CommentsServlet extends HttpServlet {
         long bookId = HttpSupport.requiredId(req, "bookId");
         var page = comments.list(bookId,
                 HttpSupport.intParam(req, "page", 0),
-                HttpSupport.intParam(req, "size", PageRequest.DEFAULT_SIZE));
+                HttpSupport.intParam(req, "size", defaultPageSize));
         HttpSupport.writeJson(resp, HttpServletResponse.SC_OK, page);
     }
 

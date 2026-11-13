@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sumdu.edu.ua.core.domain.Book;
-import sumdu.edu.ua.core.domain.PageRequest;
 import sumdu.edu.ua.core.exception.NotFoundException;
 import sumdu.edu.ua.core.service.BookService;
 import sumdu.edu.ua.core.service.CommentService;
@@ -18,20 +17,21 @@ import java.util.Map;
 public class BooksServlet extends HttpServlet {
     private static final Logger log = LoggerFactory.getLogger(BooksServlet.class);
 
-    private BookService books;
-    private CommentService comments;
+    private final BookService books;
+    private final CommentService comments;
+    private final int defaultPageSize;
 
-    @Override
-    public void init() {
-        books = HttpSupport.bean(getServletContext(), BookService.class);
-        comments = HttpSupport.bean(getServletContext(), CommentService.class);
+    public BooksServlet(BookService books, CommentService comments, int defaultPageSize) {
+        this.books = books;
+        this.comments = comments;
+        this.defaultPageSize = defaultPageSize;
     }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String path = req.getPathInfo();
         int page = HttpSupport.intParam(req, "page", 0);
-        int size = HttpSupport.intParam(req, "size", PageRequest.DEFAULT_SIZE);
+        int size = HttpSupport.intParam(req, "size", defaultPageSize);
 
         if (path == null || path.equals("/")) {
             var result = books.search(req.getParameter("q"), page, size, req.getParameter("sort"));

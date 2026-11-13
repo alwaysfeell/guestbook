@@ -3,7 +3,6 @@ package sumdu.edu.ua.web.http;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import sumdu.edu.ua.core.exception.ValidationException;
@@ -22,14 +21,6 @@ public final class HttpSupport {
         resp.setStatus(status);
         resp.setContentType("application/json;charset=UTF-8");
         JSON.writeValue(resp.getWriter(), body);
-    }
-
-    public static <T> T bean(ServletContext ctx, Class<T> type) {
-        Object bean = ctx.getAttribute(type.getName());
-        if (bean == null) {
-            throw new IllegalStateException(type.getSimpleName() + " is not initialized");
-        }
-        return type.cast(bean);
     }
 
     public static int intParam(HttpServletRequest req, String name, int defaultValue) {
