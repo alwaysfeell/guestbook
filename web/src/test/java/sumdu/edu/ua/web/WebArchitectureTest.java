@@ -5,7 +5,6 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import sumdu.edu.ua.config.Beans;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
@@ -51,7 +50,6 @@ class WebArchitectureTest {
                 .whereLayer("Config").mayNotBeAccessedByAnyLayer()
                 .whereLayer("Persistence").mayOnlyBeAccessedByLayers("Config")
                 .whereLayer("Core").mayOnlyBeAccessedByLayers("Persistence", "Web", "Config")
-                .ignoreDependency(JavalinBookApp.class, Beans.class)
                 .check(classes);
     }
 }
