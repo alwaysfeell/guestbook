@@ -1,4 +1,4 @@
-# Guestbook — каталог книг і відгуки (Maven + Jetty 11 + JDBC/H2)
+# Guestbook — каталог книг і відгуки (Maven + Spring Boot + JDBC/H2)
 
 Репозиторій: https://github.com/alwaysfeell/guestbook
 
@@ -7,7 +7,62 @@
 | №1 | Базовий застосунок «Книга відгуків» (один модуль WAR) | тег [`lab1`](https://github.com/alwaysfeell/guestbook/tree/lab1) |
 | №2 | Трирівнева архітектура: модулі core / persistence / web, каталог книг, пошук, пагінація, правило видалення за 24 години, ArchUnit | тег [`lab2`](https://github.com/alwaysfeell/guestbook/tree/lab2) |
 | №3 | HTTP-рівень на мікрофреймворку Javalin: REST-маршрути, Context, middleware, app.exception() | гілка [`lab3`](https://github.com/alwaysfeell/guestbook/tree/lab3) |
+| №4 | Spring Boot: IoC-контейнер, біни, DI через конструктор і поле, @Bean, application.yaml | гілка [`lab4`](https://github.com/alwaysfeell/guestbook/tree/lab4) |
  
+---
+
+# Лабораторна робота №4 — Spring Core & Boot
+
+Застосунок із Лаб 2 (сервлети + core + persistence) переведено на **Spring Boot**.
+Об'єкти більше не створюються вручну (клас `Beans` і слухач `AppInit` з `web.xml` видалено) —
+їх створює і зв'язує IoC-контейнер Spring. Javalin-версія з Лаб 3 залишилась у гілці `lab3`.
+
+## Запуск
+```bash
+mvn clean install
+mvn -pl web spring-boot:run
+```
+Після старту: http://localhost:8080/ (каталог), http://localhost:8080/info (параметри і біни). Зупинка: `Ctrl+C`.
+Альтернатива: `java -jar web/target/guestbook.war` (виконуваний WAR із вбудованим Tomcat).
+
+## Біни
+| Бін | Модуль | Як оголошено | Ін'єкція |
+|---|---|---|---|
+| `Db` | persistence | `@Component` | конструктор, `@Value("${app.db.url}")` |
+| `DbInit` | persistence | `@Component` + `@PostConstruct` | конструктор (`Db`) |
+| `JdbcBookRepository`, `JdbcCommentRepository` | persistence | `@Repository` | конструктор (`Db`) |
+| `CoreConfig` | web (`config`) | `@Configuration` | — |
+| `clock`, `bookService`, `commentService` | web (`config`) | `@Bean` у `CoreConfig` | параметри методів (порти, `Clock`, `@Value`) |
+| `ServletConfig` | web | `@Configuration` | — |
+| `booksServlet`, `commentsServlet`, `infoServlet`, `errorPageServlet`, `errorFilter` | web | `@Bean` (`ServletRegistrationBean`, `FilterRegistrationBean`) | сервіси → конструктори сервлетів |
+| `AppProperties` | web | `@ConfigurationProperties("app")` | значення з application.yaml |
+| `AppInfoService` | web | `@Service` | конструктор + поле (`@Autowired`, `@Value`) |
+| `StartupReport` | web | `@Component` | конструктор; `@EventListener`, `@PreDestroy` |
+
+Класи `core` анотацій Spring не мають (це перевіряє ArchUnit) — вони реєструються методами `@Bean`.
+
+## Конфігурація (`web/src/main/resources/application.yaml`)
+| Параметр | Значення | Хто використовує |
+|---|---|---|
+| `spring.application.name` | guestbook | `AppInfoService` (`@Value` у полі) |
+| `server.port` | 8080 | вбудований Tomcat |
+| `app.title` | Каталог книг і відгуки | `AppProperties` |
+| `app.db.url` | jdbc:h2:file:./data/books;AUTO_SERVER=TRUE | `Db` |
+| `app.catalog.default-page-size` | 10 | `BooksServlet`, `CommentsServlet` |
+| `app.comments.delete-window` | 24h | `CommentService` (правило видалення відгуку) |
+| `logging.*` | рівні та формат логів | Spring Boot (замість logback.xml) |
+
+Параметр можна перевизначити без зміни файлу: `mvn -pl web spring-boot:run -Dspring-boot.run.arguments=--server.port=9090`.
+
+## Ендпоїнти
+Ті самі, що в Лаб 2 (`/books`, `/books/{id}`, `/comments`, `/comments/{id}?bookId=`), плюс `GET /info` —
+параметри застосунку і список бінів. Сторінки: `/` і `/book.html?id=N` (тепер у `src/main/resources/static`).
+
+## Тести
+33 тести: юніт- і ArchUnit-тести з Лаб 2 + `SpringContextTest` (`@SpringBootTest`): завантаження бінів,
+singleton-скоуп, реєстрація сервлетів, параметри з application.yaml, ін'єкція через конструктор і поле,
+HTTP-запити через вбудований Tomcat (БД у пам'яті).
+
 ---
 
 # Лабораторна робота №3 — мікрофреймворк Javalin
