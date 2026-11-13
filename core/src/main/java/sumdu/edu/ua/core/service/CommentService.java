@@ -19,15 +19,29 @@ public class CommentService {
     private final CommentRepositoryPort comments;
     private final CatalogRepositoryPort books;
     private final Clock clock;
+    private final Duration deleteWindow;
 
     public CommentService(CommentRepositoryPort comments, CatalogRepositoryPort books) {
         this(comments, books, Clock.systemUTC());
     }
 
     public CommentService(CommentRepositoryPort comments, CatalogRepositoryPort books, Clock clock) {
+        this(comments, books, clock, DELETE_WINDOW);
+    }
+
+    public CommentService(CommentRepositoryPort comments, CatalogRepositoryPort books,
+                          Clock clock, Duration deleteWindow) {
+        if (deleteWindow == null || deleteWindow.isNegative() || deleteWindow.isZero()) {
+            throw new IllegalArgumentException("deleteWindow must be positive");
+        }
         this.comments = comments;
         this.books = books;
         this.clock = clock;
+        this.deleteWindow = deleteWindow;
+    }
+
+    public Duration getDeleteWindow() {
+        return deleteWindow;
     }
 
     public Page<Comment> list(long bookId, int page, int size) {
@@ -54,11 +68,21 @@ public class CommentService {
                         "Comment with id=" + commentId + " not found for book id=" + bookId));
 
         Duration age = Duration.between(comment.getCreatedAt(), Instant.now(clock));
-        if (age.compareTo(DELETE_WINDOW) > 0) {
-            throw new ConflictException("Comment can be deleted only within 24 hours after creation");
+        if (age.compareTo(deleteWindow) > 0) {
+            throw new ConflictException("Comment can be deleted only within "
+                    + describe(deleteWindow) + " after creation");
         }
         comments.delete(bookId, commentId);
         return comment;
+    }
+
+    private static String describe(Duration window) {
+        if (window.toMinutesPart() == 0 && window.toSecondsPart() == 0) {
+            long hours = window.toHours();
+            return hours + (hours == 1 ? " hour" : " hours");
+        }
+        long minutes = Math.max(1, window.toMinutes());
+        return minutes + (minutes == 1 ? " minute" : " minutes");
     }
 
     private void requireBook(long bookId) {

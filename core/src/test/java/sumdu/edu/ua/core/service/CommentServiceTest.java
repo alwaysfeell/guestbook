@@ -51,6 +51,15 @@ class CommentServiceTest {
     }
 
     @Test
+    void deleteWindowCanBeConfigured() {
+        CommentService oneHour = new CommentService(comments, new FakeBooks(),
+                Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofHours(1));
+        comments.put(new Comment(3, 1, "Ivan", "two hours old", NOW.minus(Duration.ofHours(2))));
+        ConflictException e = assertThrows(ConflictException.class, () -> oneHour.delete(1, 3));
+        assertEquals("Comment can be deleted only within 1 hour after creation", e.getMessage());
+    }
+
+    @Test
     void deleteOfMissingCommentGivesNotFound() {
         assertThrows(NotFoundException.class, () -> service.delete(1, 99));
     }

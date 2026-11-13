@@ -1,5 +1,6 @@
 package sumdu.edu.ua.persistence.jdbc;
 
+import org.springframework.stereotype.Repository;
 import sumdu.edu.ua.core.domain.Comment;
 import sumdu.edu.ua.core.domain.Page;
 import sumdu.edu.ua.core.domain.PageRequest;
@@ -16,11 +17,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public class JdbcCommentRepository implements CommentRepositoryPort {
+    private final Db db;
+
+    public JdbcCommentRepository(Db db) {
+        this.db = db;
+    }
+
     @Override
     public Comment add(long bookId, String author, String text) {
         Instant now = Instant.now();
-        try (Connection c = Db.get();
+        try (Connection c = db.get();
              PreparedStatement ps = c.prepareStatement(
                      "insert into comments(book_id, author, text, created_at) values (?, ?, ?, ?)",
                      Statement.RETURN_GENERATED_KEYS)) {
@@ -47,7 +55,7 @@ public class JdbcCommentRepository implements CommentRepositoryPort {
         if (since != null) {
             where.append(" and created_at >= ?");
         }
-        try (Connection c = Db.get()) {
+        try (Connection c = db.get()) {
             List<Comment> items = new ArrayList<>();
             try (PreparedStatement ps = c.prepareStatement(
                     "select id, book_id, author, text, created_at from comments" + where
@@ -77,7 +85,7 @@ public class JdbcCommentRepository implements CommentRepositoryPort {
 
     @Override
     public Optional<Comment> findById(long bookId, long commentId) {
-        try (Connection c = Db.get();
+        try (Connection c = db.get();
              PreparedStatement ps = c.prepareStatement(
                      "select id, book_id, author, text, created_at from comments where id = ? and book_id = ?")) {
             ps.setLong(1, commentId);
@@ -92,7 +100,7 @@ public class JdbcCommentRepository implements CommentRepositoryPort {
 
     @Override
     public boolean delete(long bookId, long commentId) {
-        try (Connection c = Db.get();
+        try (Connection c = db.get();
              PreparedStatement ps = c.prepareStatement("delete from comments where id = ? and book_id = ?")) {
             ps.setLong(1, commentId);
             ps.setLong(2, bookId);

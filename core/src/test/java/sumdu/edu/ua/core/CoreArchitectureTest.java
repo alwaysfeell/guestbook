@@ -41,6 +41,16 @@ class CoreArchitectureTest {
     }
 
     @Test
+    void coreShouldNotDependOnSpring() {
+        noClasses()
+                .that().resideInAPackage("sumdu.edu.ua.core..")
+                .should().dependOnClassesThat()
+                .resideInAnyPackage("org.springframework..", "jakarta.annotation..", "jakarta.inject..")
+                .because("сервіси core реєструються як біни в @Configuration-класі, без анотацій Spring")
+                .check(core);
+    }
+
+    @Test
     void portsShouldBeInterfaces() {
         classes()
                 .that().resideInAPackage("sumdu.edu.ua.core.port..")

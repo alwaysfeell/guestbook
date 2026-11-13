@@ -1,5 +1,6 @@
 package sumdu.edu.ua.persistence.jdbc;
 
+import org.springframework.stereotype.Repository;
 import sumdu.edu.ua.core.domain.Book;
 import sumdu.edu.ua.core.domain.Page;
 import sumdu.edu.ua.core.domain.PageRequest;
@@ -14,7 +15,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public class JdbcBookRepository implements CatalogRepositoryPort {
+    private final Db db;
+
+    public JdbcBookRepository(Db db) {
+        this.db = db;
+    }
+
     @Override
     public Page<Book> search(String query, PageRequest request) {
         boolean filter = query != null && !query.isBlank();
@@ -22,7 +30,7 @@ public class JdbcBookRepository implements CatalogRepositoryPort {
         String order = " order by " + column(request.getSortField())
                 + (request.isAscending() ? " asc" : " desc") + ", id asc";
 
-        try (Connection c = Db.get()) {
+        try (Connection c = db.get()) {
             List<Book> items = new ArrayList<>();
             try (PreparedStatement ps = c.prepareStatement(
                     "select id, title, author, pub_year from books" + where + order + " limit ? offset ?")) {
@@ -51,7 +59,7 @@ public class JdbcBookRepository implements CatalogRepositoryPort {
 
     @Override
     public Optional<Book> findById(long id) {
-        try (Connection c = Db.get();
+        try (Connection c = db.get();
              PreparedStatement ps = c.prepareStatement(
                      "select id, title, author, pub_year from books where id = ?")) {
             ps.setLong(1, id);
@@ -65,7 +73,7 @@ public class JdbcBookRepository implements CatalogRepositoryPort {
 
     @Override
     public Book add(String title, String author, int pubYear) {
-        try (Connection c = Db.get();
+        try (Connection c = db.get();
              PreparedStatement ps = c.prepareStatement(
                      "insert into books(title, author, pub_year) values (?, ?, ?)",
                      Statement.RETURN_GENERATED_KEYS)) {

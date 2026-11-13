@@ -1,7 +1,9 @@
 package sumdu.edu.ua.persistence.jdbc;
 
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,14 +13,19 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public final class DbInit {
+@Component
+public class DbInit {
     private static final Logger log = LoggerFactory.getLogger(DbInit.class);
 
-    private DbInit() {
+    private final Db db;
+
+    public DbInit(Db db) {
+        this.db = db;
     }
 
-    public static void init() {
-        try (Connection c = Db.get(); Statement st = c.createStatement()) {
+    @PostConstruct
+    public void init() {
+        try (Connection c = db.get(); Statement st = c.createStatement()) {
             runScript(st, "schema.sql");
             try (ResultSet rs = st.executeQuery("select count(*) from books")) {
                 rs.next();
@@ -27,7 +34,7 @@ public final class DbInit {
                     log.info("Demo data inserted (data.sql)");
                 }
             }
-            log.info("Database schema is ready (tables books, comments)");
+            log.info("Database schema is ready (tables books, comments), url={}", db.getUrl());
         } catch (SQLException | IOException e) {
             throw new IllegalStateException("DB schema init failed", e);
         }

@@ -6,6 +6,7 @@ import sumdu.edu.ua.core.domain.Book;
 import sumdu.edu.ua.core.domain.Comment;
 import sumdu.edu.ua.core.domain.Page;
 import sumdu.edu.ua.core.domain.PageRequest;
+import sumdu.edu.ua.persistence.jdbc.Db;
 import sumdu.edu.ua.persistence.jdbc.DbInit;
 import sumdu.edu.ua.persistence.jdbc.JdbcBookRepository;
 import sumdu.edu.ua.persistence.jdbc.JdbcCommentRepository;
@@ -15,12 +16,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JdbcRepositoriesTest {
-    private static final JdbcBookRepository books = new JdbcBookRepository();
-    private static final JdbcCommentRepository comments = new JdbcCommentRepository();
+    private static final Db db = new Db("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
+    private static final JdbcBookRepository books = new JdbcBookRepository(db);
+    private static final JdbcCommentRepository comments = new JdbcCommentRepository(db);
 
     @BeforeAll
     static void initDb() {
-        DbInit.init();
+        new DbInit(db).init();
     }
 
     @Test
