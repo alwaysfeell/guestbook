@@ -50,6 +50,13 @@ class BookServiceTest {
     }
 
     @Test
+    void rejectsNonPositiveBookId() {
+        ValidationException e = assertThrows(ValidationException.class, () -> service.getById(0));
+        assertEquals("book id must be a positive integer", e.getMessage());
+        assertThrows(ValidationException.class, () -> service.getById(-3));
+    }
+
+    @Test
     void validatesNewBook() {
         assertThrows(ValidationException.class, () -> service.add(" ", "Author", 2000));
         assertThrows(ValidationException.class, () -> service.add("Title", "Author", null));

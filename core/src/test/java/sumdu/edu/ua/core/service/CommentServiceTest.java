@@ -73,6 +73,39 @@ class CommentServiceTest {
     }
 
     @Test
+    void updatesTextOfFreshComment() {
+        comments.put(new Comment(4, 1, "Ivan", "old text", NOW.minus(Duration.ofHours(1))));
+        Comment updated = service.update(1, 4, "  new text  ");
+        assertEquals("new text", updated.getText());
+        assertEquals("Ivan", updated.getAuthor());
+        assertEquals("new text", comments.data.get(0).getText());
+    }
+
+    @Test
+    void refusesToUpdateCommentOlderThan24Hours() {
+        comments.put(new Comment(5, 1, "Ivan", "old", NOW.minus(Duration.ofHours(25))));
+        ConflictException e = assertThrows(ConflictException.class, () -> service.update(1, 5, "new"));
+        assertEquals("Comment can be edited only within 24 hours after creation", e.getMessage());
+        assertEquals("old", comments.data.get(0).getText());
+    }
+
+    @Test
+    void updateValidatesText() {
+        comments.put(new Comment(6, 1, "Ivan", "old", NOW));
+        assertThrows(ValidationException.class, () -> service.update(1, 6, "  "));
+        assertThrows(ValidationException.class, () -> service.update(1, 6, null));
+    }
+
+    @Test
+    void rejectsNonPositiveIds() {
+        ValidationException e = assertThrows(ValidationException.class, () -> service.add(0, "Ivan", "text"));
+        assertEquals("bookId must be a positive integer", e.getMessage());
+        assertThrows(ValidationException.class, () -> service.list(-1, 0, 10));
+        assertThrows(ValidationException.class, () -> service.delete(1, 0));
+        assertThrows(ValidationException.class, () -> service.update(-5, 1, "text"));
+    }
+
+    @Test
     void addToMissingBookGivesNotFound() {
         assertThrows(NotFoundException.class, () -> service.add(42, "Ivan", "text"));
     }
@@ -98,6 +131,16 @@ class CommentServiceTest {
         }
         public Optional<Comment> findById(long bookId, long commentId) {
             return data.stream().filter(c -> c.getId() == commentId && c.getBookId() == bookId).findFirst();
+        }
+        public boolean update(long bookId, long commentId, String text) {
+            for (int i = 0; i < data.size(); i++) {
+                Comment c = data.get(i);
+                if (c.getId() == commentId && c.getBookId() == bookId) {
+                    data.set(i, c.withText(text));
+                    return true;
+                }
+            }
+            return false;
         }
         public boolean delete(long bookId, long commentId) {
             return data.removeIf(c -> c.getId() == commentId && c.getBookId() == bookId);

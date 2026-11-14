@@ -45,35 +45,56 @@ public class CommentService {
     }
 
     public Page<Comment> list(long bookId, int page, int size) {
+        BookService.requirePositiveId(bookId, "bookId");
         requireBook(bookId);
         return comments.list(bookId, null, null, new PageRequest(page, size));
     }
 
     public Comment add(long bookId, String author, String text) {
+        BookService.requirePositiveId(bookId, "bookId");
         String a = author == null ? "" : author.trim();
-        String t = text == null ? "" : text.trim();
         if (a.isEmpty() || a.length() > 64) {
             throw new ValidationException("author is required (max 64 chars)");
         }
-        if (t.isEmpty() || t.length() > 1000) {
-            throw new ValidationException("text is required (max 1000 chars)");
-        }
+        String t = normalizeText(text);
         requireBook(bookId);
         return comments.add(bookId, a, t);
     }
 
+    public Comment update(long bookId, long commentId, String text) {
+        String t = normalizeText(text);
+        Comment comment = requireEditable(bookId, commentId, "edited");
+        comments.update(bookId, commentId, t);
+        return comment.withText(t);
+    }
+
     public Comment delete(long bookId, long commentId) {
+        Comment comment = requireEditable(bookId, commentId, "deleted");
+        comments.delete(bookId, commentId);
+        return comment;
+    }
+
+    private Comment requireEditable(long bookId, long commentId, String action) {
+        BookService.requirePositiveId(bookId, "bookId");
+        BookService.requirePositiveId(commentId, "comment id");
         Comment comment = comments.findById(bookId, commentId)
                 .orElseThrow(() -> new NotFoundException(
                         "Comment with id=" + commentId + " not found for book id=" + bookId));
 
         Duration age = Duration.between(comment.getCreatedAt(), Instant.now(clock));
         if (age.compareTo(deleteWindow) > 0) {
-            throw new ConflictException("Comment can be deleted only within "
+            throw new ConflictException("Comment can be " + action + " only within "
                     + describe(deleteWindow) + " after creation");
         }
-        comments.delete(bookId, commentId);
         return comment;
+    }
+
+    private static String normalizeText(String text) {
+        String t = text == null ? "" : text.trim();
+        if (t.isEmpty() || t.length() > 1000) {
+            throw new ValidationException("text is required (max 1000 chars)");
+        }
+        return t;
     }
 
     private static String describe(Duration window) {

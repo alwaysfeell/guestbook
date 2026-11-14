@@ -14,5 +14,7 @@ public interface CommentRepositoryPort {
 
     Optional<Comment> findById(long bookId, long commentId);
 
+    boolean update(long bookId, long commentId, String text);
+
     boolean delete(long bookId, long commentId);
 }

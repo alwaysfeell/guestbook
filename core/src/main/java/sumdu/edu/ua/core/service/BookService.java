@@ -45,6 +45,7 @@ public class BookService {
     }
 
     public Book getById(long id) {
+        requirePositiveId(id, "book id");
         return repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Book with id=" + id + " not found"));
     }
@@ -63,5 +64,11 @@ public class BookService {
             throw new ValidationException("pubYear must be between 1 and " + currentYear);
         }
         return repo.add(t, a, pubYear);
+    }
+
+    static void requirePositiveId(long id, String name) {
+        if (id <= 0) {
+            throw new ValidationException(name + " must be a positive integer");
+        }
     }
 }

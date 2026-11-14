@@ -99,6 +99,19 @@ public class JdbcCommentRepository implements CommentRepositoryPort {
     }
 
     @Override
+    public boolean update(long bookId, long commentId, String text) {
+        try (Connection c = db.get();
+             PreparedStatement ps = c.prepareStatement("update comments set text = ? where id = ? and book_id = ?")) {
+            ps.setString(1, text);
+            ps.setLong(2, commentId);
+            ps.setLong(3, bookId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new IllegalStateException("DB error while updating comment " + commentId, e);
+        }
+    }
+
+    @Override
     public boolean delete(long bookId, long commentId) {
         try (Connection c = db.get();
              PreparedStatement ps = c.prepareStatement("delete from comments where id = ? and book_id = ?")) {

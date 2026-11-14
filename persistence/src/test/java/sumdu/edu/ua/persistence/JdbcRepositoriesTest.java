@@ -38,6 +38,20 @@ class JdbcRepositoriesTest {
     }
 
     @Test
+    void updateChangesOnlyText() {
+        Book book = books.add("Update Book", "Tester", 2025);
+        Comment c = comments.add(book.getId(), "Автор", "Перша версія");
+
+        assertTrue(comments.update(book.getId(), c.getId(), "Друга версія"));
+        Comment reloaded = comments.findById(book.getId(), c.getId()).orElseThrow();
+        assertEquals("Друга версія", reloaded.getText());
+        assertEquals("Автор", reloaded.getAuthor());
+
+        assertFalse(comments.update(book.getId(), 999_999, "нічого"));
+        assertFalse(comments.update(book.getId() + 1000, c.getId(), "чужа книга"));
+    }
+
+    @Test
     void addListAndDeleteComment() {
         Book book = books.add("Test Book", "Tester", 2026);
         Comment c = comments.add(book.getId(), "Влад", "Тестовий відгук");
