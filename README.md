@@ -1,4 +1,4 @@
-# Guestbook — каталог книг і відгуки (Maven + Spring Boot + JDBC/H2)
+# Guestbook — каталог книг і відгуки (Maven + Spring Boot / Spring MVC + JDBC/H2)
 
 Репозиторій: https://github.com/alwaysfeell/guestbook
 
@@ -8,7 +8,65 @@
 | №2 | Трирівнева архітектура: модулі core / persistence / web, каталог книг, пошук, пагінація, правило видалення за 24 години, ArchUnit | тег [`lab2`](https://github.com/alwaysfeell/guestbook/tree/lab2) |
 | №3 | HTTP-рівень на мікрофреймворку Javalin: REST-маршрути, Context, middleware, app.exception() | гілка [`lab3`](https://github.com/alwaysfeell/guestbook/tree/lab3) |
 | №4 | Spring Boot: IoC-контейнер, біни, DI через конструктор і поле, @Bean, application.yaml | гілка [`lab4`](https://github.com/alwaysfeell/guestbook/tree/lab4) |
+| №5 | Spring MVC: контролери @RestController замість сервлетів, DispatcherServlet, @EnableWebMvc, @RestControllerAdvice, CRUD відгуків | гілка [`lab5`](https://github.com/alwaysfeell/guestbook/tree/lab5) |
  
+---
+
+# Лабораторна робота №5 — Spring MVC
+
+Сервлети з Лаб 4 (`BooksServlet`, `CommentsServlet`, `InfoServlet`, `ErrorFilter`, `ErrorPageServlet`)
+замінено контролерами Spring MVC. Усі HTTP-запити тепер приймає один `DispatcherServlet`
+(його реєструє Spring Boot на шляху `/`) і за анотаціями `@GetMapping`, `@PostMapping`, `@PutMapping`,
+`@DeleteMapping` передає потрібному методу контролера. JSON формує Jackson автоматично.
+
+## Запуск
+```bash
+mvn clean install
+mvn -pl web spring-boot:run
+```
+Після старту: http://localhost:8080/ (каталог), http://localhost:8080/info (біни і маршрути). Зупинка: `Ctrl+C`.
+
+
+## Структура модуля web
+| Клас | Анотації | Призначення |
+|---|---|---|
+| `controller/BooksController` | `@RestController`, `@RequestMapping("/books")` | GET /books, GET /books/{id}, POST /books |
+| `controller/CommentsController` | `@RestController`, `@RequestMapping("/comments")` | GET, POST, PUT /{id}, DELETE /{id} — повний CRUD |
+| `controller/InfoController` | `@Controller` + `@ResponseBody` | GET /info |
+| `controller/HomeController` | `@Controller` | GET / → логічне представлення `index` → `/index.html` |
+| `dto/*` | `record` | тіла запитів (`@RequestBody`) і відповідь `BookDetails` |
+| `error/GlobalExceptionHandler` | `@RestControllerAdvice` | винятки → HTTP-статус + JSON `ApiError` |
+| `error/ApiErrorController` | `@RestController`, `ErrorController` | шлях `/error` у форматі `ApiError` |
+| `config/WebConfig` | `@Configuration`, `@EnableWebMvc` | статичні ресурси, ViewResolver, Jackson-конвертер |
+
+## Ендпоїнти
+| Метод і шлях | Тіло | Відповідь |
+|---|---|---|
+| `GET /books?q=&page=&size=&sort=` | — | 200, сторінка книг |
+| `GET /books/{id}?page=&size=` | — | 200, `{book, comments}`; 404; 400 |
+| `POST /books` | `{"title","author","pubYear"}` | 201 + `Location`; 400; 415 |
+| `GET /comments?bookId=` | — | 200; 400 без bookId; 404 |
+| `POST /comments` | `{"bookId","author","text"}` | 201; 400; 404 |
+| `PUT /comments/{id}?bookId=` | `{"text"}` | 200; 404; 409 (старше 24 год) |
+| `DELETE /comments/{id}?bookId=` | — | 204; 404; 409 |
+| `GET /info` | — | 200, параметри, біни, маршрути DispatcherServlet |
+
+POST і PUT приймають лише `Content-Type: application/json` (у Postman: Body → raw → JSON).
+
+## Обробка помилок
+| Виняток | Статус |
+|---|---|
+| `ValidationException` (core), `MethodArgumentTypeMismatchException`, `MissingServletRequestParameterException`, `HttpMessageNotReadableException` | 400 |
+| `NotFoundException` (core), `NoResourceFoundException` | 404 |
+| `HttpRequestMethodNotSupportedException` | 405 + заголовок `Allow` |
+| `ConflictException` (core) | 409 |
+| `HttpMediaTypeNotSupportedException` | 415 |
+| будь-який інший `Exception` | 500 |
+
+## Тести
+58 тестів: core — 23, persistence — 7, web — 28 (`BooksControllerTest`, `CommentsControllerTest` на MockMvc,
+`WebMvcConfigTest`, `SpringContextTest`, ArchUnit).
+
 ---
 
 # Лабораторна робота №4 — Spring Core & Boot
