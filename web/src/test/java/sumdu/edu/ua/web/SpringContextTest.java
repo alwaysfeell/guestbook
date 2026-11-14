@@ -8,6 +8,8 @@ import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.util.ClassUtils;
 import sumdu.edu.ua.core.port.CatalogRepositoryPort;
 import sumdu.edu.ua.core.port.CommentRepositoryPort;
@@ -54,11 +56,15 @@ class SpringContextTest {
     }
 
     @Test
-    void servletsAreRegisteredAsBeans() {
-        Map<String, ServletRegistrationBean> regs = context.getBeansOfType(ServletRegistrationBean.class);
-        assertThat(regs).containsKeys("booksServlet", "commentsServlet", "infoServlet", "errorPageServlet");
-        assertThat(regs.get("booksServlet").getUrlMappings()).containsExactly("/books/*");
-        assertThat(regs.get("commentsServlet").getUrlMappings()).containsExactly("/comments/*");
+    void controllersAreRegisteredInsteadOfServlets() {
+        assertThat(context.getBeansWithAnnotation(RestController.class))
+                .containsKeys("booksController", "commentsController");
+        assertThat(context.getBeansWithAnnotation(Controller.class)).containsKey("infoController");
+        assertThat(context.getBeansOfType(ServletRegistrationBean.class)).containsOnlyKeys("dispatcherServletRegistration");
+        assertThat(context.getBean(AppInfoService.class).endpoints())
+                .anyMatch(e -> e.startsWith("GET") && e.contains("/books/{id}"))
+                .anyMatch(e -> e.startsWith("POST") && e.contains("/comments"))
+                .anyMatch(e -> e.startsWith("DELETE") && e.contains("/comments/{id}"));
     }
 
     @Test

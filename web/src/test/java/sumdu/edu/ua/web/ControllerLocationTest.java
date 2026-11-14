@@ -7,8 +7,12 @@ import jakarta.servlet.Filter;
 import jakarta.servlet.http.HttpServlet;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 class ControllerLocationTest {
     private static JavaClasses classes;
@@ -21,12 +25,29 @@ class ControllerLocationTest {
     }
 
     @Test
-    void servletsShouldResideOnlyInWeb() {
+    void noHandWrittenServletsOrFilters() {
+        noClasses()
+                .should().beAssignableTo(HttpServlet.class)
+                .orShould().beAssignableTo(Filter.class)
+                .because("HTTP-запити обробляє DispatcherServlet і контролери Spring MVC")
+                .check(classes);
+    }
+
+    @Test
+    void controllersShouldResideInWebController() {
         classes()
-                .that().haveSimpleNameEndingWith("Servlet")
-                .or().areAssignableTo(HttpServlet.class)
-                .or().areAssignableTo(Filter.class)
-                .should().resideInAPackage("sumdu.edu.ua.web..")
+                .that().areAnnotatedWith(RestController.class)
+                .or().areAnnotatedWith(Controller.class)
+                .should().resideInAnyPackage("sumdu.edu.ua.web.controller..", "sumdu.edu.ua.web.error..")
+                .andShould().haveSimpleNameEndingWith("Controller")
+                .check(classes);
+    }
+
+    @Test
+    void controllerAdviceShouldResideInWebError() {
+        classes()
+                .that().areAnnotatedWith(RestControllerAdvice.class)
+                .should().resideInAPackage("sumdu.edu.ua.web.error..")
                 .check(classes);
     }
 

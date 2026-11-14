@@ -25,6 +25,9 @@ public class StartupReport {
         var beans = info.applicationBeans();
         log.info("Application beans loaded ({}):", beans.size());
         beans.forEach((name, type) -> log.info("  {} -> {}", name, type));
+        var endpoints = info.endpoints();
+        log.info("DispatcherServlet routes ({}):", endpoints.size());
+        endpoints.forEach(e -> log.info("  {}", e));
         log.info("Started at http://localhost:{}/  (books: /books, info: /info)",
                 env.getProperty("local.server.port"));
     }

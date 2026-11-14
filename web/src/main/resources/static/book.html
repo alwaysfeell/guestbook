@@ -48,12 +48,26 @@
       const date = document.createElement('span');
       date.className = 'date';
       date.textContent = ' (' + new Date(c.createdAt).toLocaleString('uk-UA') + ') ';
+      const edit = document.createElement('button');
+      edit.textContent = 'Редагувати';
+      edit.onclick = () => update(c.id, c.text);
       const del = document.createElement('button');
       del.textContent = 'Видалити';
       del.onclick = () => remove(c.id);
-      li.append(b, c.text, date, del);
+      li.append(b, c.text, date, edit, ' ', del);
       ul.appendChild(li);
     });
+  }
+
+  async function update(commentId, oldText) {
+    const text = prompt('Новий текст відгуку', oldText);
+    if (text === null) return;
+    const r = await fetch(`comments/${commentId}?bookId=${bookId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    if (r.ok) { showError(null); load(); } else { showError(await r.json()); }
   }
 
   async function remove(commentId) {
@@ -67,9 +81,12 @@
 
   document.getElementById('add').addEventListener('submit', async e => {
     e.preventDefault();
-    const body = new URLSearchParams(new FormData(e.target));
-    body.set('bookId', bookId);
-    const r = await fetch('comments', { method: 'POST', body });
+    const f = new FormData(e.target);
+    const r = await fetch('comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookId: Number(bookId), author: f.get('author'), text: f.get('text') })
+    });
     if (r.ok) { e.target.reset(); showError(null); load(); } else { showError(await r.json()); }
   });
 

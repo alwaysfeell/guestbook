@@ -1,5 +1,7 @@
 package sumdu.edu.ua.web.error;
 
+import org.springframework.http.HttpStatus;
+
 import java.time.Instant;
 
 public class ApiError {
@@ -16,6 +18,10 @@ public class ApiError {
         this.path = path;
     }
 
+    public ApiError(HttpStatus status, String message, String path) {
+        this(status.value(), message, path);
+    }
+
     public int getStatus() { return status; }
     public String getError() { return error; }
     public String getMessage() { return message; }
@@ -23,14 +29,10 @@ public class ApiError {
     public Instant getTimestamp() { return timestamp; }
 
     private static String reason(int status) {
-        switch (status) {
-            case 400: return "Bad Request";
-            case 404: return "Not Found";
-            case 405: return "Method Not Allowed";
-            case 409: return "Conflict";
-            case 415: return "Unsupported Media Type";
-            case 500: return "Internal Server Error";
-            default: return status >= 500 ? "Server Error" : "Client Error";
+        HttpStatus known = HttpStatus.resolve(status);
+        if (known != null) {
+            return known.getReasonPhrase();
         }
+        return status >= 500 ? "Server Error" : "Client Error";
     }
 }

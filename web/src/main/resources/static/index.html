@@ -93,7 +93,12 @@
 
   document.getElementById('add').addEventListener('submit', async e => {
     e.preventDefault();
-    const r = await fetch('books', { method: 'POST', body: new URLSearchParams(new FormData(e.target)) });
+    const f = new FormData(e.target);
+    const r = await fetch('books', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: f.get('title'), author: f.get('author'), pubYear: Number(f.get('pubYear')) })
+    });
     if (r.ok) { e.target.reset(); load(); } else { showError(await r.json()); }
   });
 
@@ -102,7 +107,8 @@
   fetch('info').then(r => r.json()).then(i => {
     document.getElementById('app-info').textContent =
       `${i.title} · ${i.application} · Spring Boot ${i.springBootVersion} · порт ${i.serverPort}` +
-      ` · бінів у контексті: ${i.beansInContext} · відгук можна видалити протягом ${i.commentDeleteWindow}`;
+      ` · бінів у контексті: ${i.beansInContext} · маршрутів Spring MVC: ${i.endpoints.length}` +
+      ` · відгук можна змінити або видалити протягом ${i.commentDeleteWindow}`;
   });
 </script>
 </body>
