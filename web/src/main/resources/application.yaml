@@ -3,6 +3,18 @@ spring:
     name: guestbook
   main:
     web-application-type: servlet
+  messages:
+    basename: messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+  thymeleaf:
+    cache: false
+    encoding: UTF-8
+    mode: HTML
+    prefix: classpath:/templates/
+    suffix: .html
+    servlet:
+      content-type: text/html
 
 server:
   port: 8080
