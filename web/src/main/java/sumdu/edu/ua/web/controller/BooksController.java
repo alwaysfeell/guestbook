@@ -1,62 +1,79 @@
 package sumdu.edu.ua.web.controller;
 
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import sumdu.edu.ua.core.domain.Book;
 import sumdu.edu.ua.core.domain.Page;
+import sumdu.edu.ua.core.exception.ValidationException;
 import sumdu.edu.ua.core.service.BookService;
-import sumdu.edu.ua.core.service.CommentService;
-import sumdu.edu.ua.web.dto.BookDetails;
-import sumdu.edu.ua.web.dto.NewBookRequest;
+import sumdu.edu.ua.web.form.BookForm;
 
-import java.net.URI;
+import java.time.Clock;
+import java.time.Year;
 
-@RestController
+@Controller
 @RequestMapping("/books")
 public class BooksController {
     private static final Logger log = LoggerFactory.getLogger(BooksController.class);
 
     private final BookService books;
-    private final CommentService comments;
+    private final Clock clock;
 
-    public BooksController(BookService books, CommentService comments) {
+    public BooksController(BookService books, Clock clock) {
         this.books = books;
-        this.comments = comments;
+        this.clock = clock;
     }
 
     @GetMapping
-    public ResponseEntity<Page<Book>> getBooks(
-            @RequestParam(required = false) String q,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "${app.catalog.default-page-size:10}") int size,
-            @RequestParam(required = false) String sort) {
-        return ResponseEntity.ok(books.search(q, page, size, sort));
+    public String getAllBooks(@RequestParam(required = false) String q,
+                              @RequestParam(defaultValue = "0") int page,
+                              @RequestParam(defaultValue = "${app.catalog.default-page-size:10}") int size,
+                              Model model) {
+        String query = q == null || q.isBlank() ? null : q.trim();
+        Page<Book> result = books.search(query, page, size, null);
+        model.addAttribute("books", result.getItems());
+        model.addAttribute("page", result);
+        model.addAttribute("q", query);
+        return "books";
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<BookDetails> getBook(
-            @PathVariable long id,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "${app.catalog.default-page-size:10}") int size) {
-        Book book = books.getById(id);
-        return ResponseEntity.ok(new BookDetails(book, comments.list(id, page, size)));
+    @GetMapping("/add")
+    public String showAddForm(Model model) {
+        model.addAttribute("bookForm", new BookForm());
+        return "book-form";
     }
 
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Book> addBook(@RequestBody NewBookRequest request, UriComponentsBuilder uri) {
-        Book saved = books.add(request.title(), request.author(), request.pubYear());
+    @PostMapping("/add")
+    public String addBook(@Valid @ModelAttribute("bookForm") BookForm form,
+                          BindingResult result,
+                          RedirectAttributes redirect) {
+        int currentYear = Year.now(clock).getValue();
+        if (form.getPubYear() != null && form.getPubYear() > currentYear) {
+            result.rejectValue("pubYear", "book.pubYear.future", new Object[]{currentYear}, null);
+        }
+        if (result.hasErrors()) {
+            return "book-form";
+        }
+        Book saved;
+        try {
+            saved = books.add(form.getTitle(), form.getAuthor(), form.getPubYear());
+        } catch (ValidationException e) {
+            result.reject("book.rejected", new Object[]{e.getMessage()}, e.getMessage());
+            return "book-form";
+        }
         log.info("Book created: id={}, title='{}', author='{}'", saved.getId(), saved.getTitle(), saved.getAuthor());
-        URI location = uri.path("/books/{id}").buildAndExpand(saved.getId()).toUri();
-        return ResponseEntity.created(location).body(saved);
+        redirect.addFlashAttribute("notice", "book.added");
+        redirect.addFlashAttribute("noticeArg", saved.getTitle());
+        return "redirect:/books";
     }
 }
