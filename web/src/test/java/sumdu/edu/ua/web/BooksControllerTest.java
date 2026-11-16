@@ -7,16 +7,20 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Year;
+
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.startsWith;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 @SpringBootTest(properties = "app.db.url=jdbc:h2:mem:books-controller;DB_CLOSE_DELAY=-1")
 @AutoConfigureMockMvc
@@ -26,85 +30,103 @@ class BooksControllerTest {
     private MockMvc mvc;
 
     @Test
-    void listReturnsJsonPage() throws Exception {
+    void listRendersBooksTemplateWithModel() throws Exception {
         mvc.perform(get("/books"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.page").value(0))
-                .andExpect(jsonPath("$.size").value(10))
-                .andExpect(jsonPath("$.items", hasSize(10)))
-                .andExpect(jsonPath("$.items[0].title").value("Кобзар"));
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+                .andExpect(view().name("books"))
+                .andExpect(model().attribute("books", hasSize(10)))
+                .andExpect(model().attributeExists("page"))
+                .andExpect(content().string(allOf(
+                        containsString("<h1>Каталог книг</h1>"),
+                        containsString("Кобзар"),
+                        containsString("href=\"/books/1/comments\""),
+                        containsString("Сторінка 1 з 2"),
+                        containsString("Усього книг: "))));
     }
 
     @Test
-    void searchSortAndPagingAreBoundFromRequestParams() throws Exception {
-        mvc.perform(get("/books").param("q", "martin").param("sort", "pubYear,desc").param("size", "2"))
+    void searchWithoutResultsShowsConditionalMessage() throws Exception {
+        mvc.perform(get("/books").param("q", "martin"))
+                .andExpect(model().attribute("books", hasSize(3)))
+                .andExpect(content().string(not(containsString("class=\"empty\""))));
+
+        mvc.perform(get("/books").param("q", "zzz"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total").value(3))
-                .andExpect(jsonPath("$.totalPages").value(2))
-                .andExpect(jsonPath("$.items[0].title").value("Clean Architecture"))
-                .andExpect(jsonPath("$.items[1].title").value("Clean Code"));
+                .andExpect(model().attribute("books", hasSize(0)))
+                .andExpect(content().string(allOf(
+                        containsString("За запитом «zzz» нічого не знайдено."),
+                        not(containsString("<table")))));
     }
 
     @Test
-    void bookByIdContainsComments() throws Exception {
-        mvc.perform(get("/books/11"))
+    void addFormIsBoundToBookForm() throws Exception {
+        mvc.perform(get("/books/add"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.book.title").value("Clean Architecture"))
-                .andExpect(jsonPath("$.comments.items", hasSize(2)))
-                .andExpect(jsonPath("$.comments.items[0].author").value("Андрій"))
-                .andExpect(jsonPath("$.comments.items[0].createdAt", containsString("T")));
+                .andExpect(view().name("book-form"))
+                .andExpect(model().attributeExists("bookForm"))
+                .andExpect(content().string(allOf(
+                        containsString("action=\"/books/add\""),
+                        containsString("id=\"title\" name=\"title\""),
+                        containsString("id=\"author\" name=\"author\""),
+                        containsString("id=\"pubYear\" name=\"pubYear\""))));
     }
 
     @Test
-    void addBookReturns201WithLocation() throws Exception {
-        mvc.perform(post("/books").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Intermezzo\",\"author\":\"Mykhailo Kotsiubynskyi\",\"pubYear\":1908}"))
-                .andExpect(status().isCreated())
-                .andExpect(header().string("Location", startsWith("http://localhost/books/")))
-                .andExpect(jsonPath("$.id").isNumber())
-                .andExpect(jsonPath("$.title").value("Intermezzo"));
+    void validFormAddsBookAndRedirects() throws Exception {
+        mvc.perform(post("/books/add")
+                        .param("title", "Intermezzo")
+                        .param("author", "Михайло Коцюбинський")
+                        .param("pubYear", "1908"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/books"))
+                .andExpect(flash().attribute("notice", "book.added"))
+                .andExpect(flash().attribute("noticeArg", "Intermezzo"));
+
+        mvc.perform(get("/books").param("q", "Intermezzo"))
+                .andExpect(model().attribute("books", hasSize(1)));
     }
 
     @Test
-    void errorsHaveStatusAndApiErrorBody() throws Exception {
-        mvc.perform(get("/books/999"))
+    void invalidFormIsRenderedAgainWithLocalizedErrors() throws Exception {
+        mvc.perform(post("/books/add")
+                        .param("title", " ")
+                        .param("author", "Author")
+                        .param("pubYear", "abc"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("book-form"))
+                .andExpect(model().attributeHasFieldErrors("bookForm", "title", "pubYear"))
+                .andExpect(content().string(allOf(
+                        containsString("Вкажіть назву книги."),
+                        containsString("Рік видання має бути цілим числом."),
+                        containsString("value=\"Author\""))));
+
+        int next = Year.now().getValue() + 1;
+        mvc.perform(post("/books/add")
+                        .header("Accept-Language", "en")
+                        .param("title", "Future")
+                        .param("author", "Author")
+                        .param("pubYear", String.valueOf(next)))
+                .andExpect(model().attributeHasFieldErrorCode("bookForm", "pubYear", "book.pubYear.future"))
+                .andExpect(content().string(containsString(
+                        "Publication year cannot be greater than " + (next - 1) + ".")));
+    }
+
+    @Test
+    void errorsAreRenderedAsHtmlPage() throws Exception {
+        mvc.perform(get("/books/999/comments"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.message").value("Book with id=999 not found"))
-                .andExpect(jsonPath("$.path").value("/books/999"));
+                .andExpect(view().name("error"))
+                .andExpect(content().string(allOf(
+                        containsString("Сторінку не знайдено"),
+                        containsString("Book with id=999 not found"))));
 
-        mvc.perform(get("/books/abc"))
+        mvc.perform(get("/books/abc/comments"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("id must be an integer, got 'abc'"));
+                .andExpect(content().string(containsString("bookId must be an integer, got &#39;abc&#39;")));
 
-        mvc.perform(get("/books/-1"))
+        mvc.perform(get("/books").param("page", "-1"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("book id must be a positive integer"));
-
-        mvc.perform(get("/books").param("size", "500"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("size must be between 1 and 100"));
-    }
-
-    @Test
-    void invalidRequestsToPostBooks() throws Exception {
-        mvc.perform(post("/books").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\" \",\"author\":\"A\",\"pubYear\":2000}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("title is required (max 255 chars)"));
-
-        mvc.perform(post("/books").contentType(MediaType.APPLICATION_JSON).content("{not json"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Request body is missing or is not valid JSON"));
-
-        mvc.perform(post("/books").contentType(MediaType.APPLICATION_FORM_URLENCODED).content("title=T"))
-                .andExpect(status().isUnsupportedMediaType())
-                .andExpect(jsonPath("$.status").value(415));
-
-        mvc.perform(put("/books"))
-                .andExpect(status().isMethodNotAllowed())
-                .andExpect(header().string("Allow", containsString("GET")))
-                .andExpect(jsonPath("$.status").value(405));
+                .andExpect(content().string(containsString("page must be &gt;= 0")));
     }
 }

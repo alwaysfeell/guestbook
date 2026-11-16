@@ -56,15 +56,15 @@ class SpringContextTest {
     }
 
     @Test
-    void controllersAreRegisteredInsteadOfServlets() {
-        assertThat(context.getBeansWithAnnotation(RestController.class))
-                .containsKeys("booksController", "commentsController");
-        assertThat(context.getBeansWithAnnotation(Controller.class)).containsKey("infoController");
+    void mvcControllersAreRegistered() {
+        assertThat(context.getBeansWithAnnotation(Controller.class))
+                .containsKeys("booksController", "commentsController", "homeController", "infoController");
+        assertThat(context.getBeansWithAnnotation(RestController.class)).isEmpty();
         assertThat(context.getBeansOfType(ServletRegistrationBean.class)).containsOnlyKeys("dispatcherServletRegistration");
         assertThat(context.getBean(AppInfoService.class).endpoints())
-                .anyMatch(e -> e.startsWith("GET") && e.contains("/books/{id}"))
-                .anyMatch(e -> e.startsWith("POST") && e.contains("/comments"))
-                .anyMatch(e -> e.startsWith("DELETE") && e.contains("/comments/{id}"));
+                .anyMatch(e -> e.startsWith("GET") && e.contains("/books/add"))
+                .anyMatch(e -> e.startsWith("POST") && e.contains("/books/{bookId}/comments"))
+                .anyMatch(e -> e.startsWith("POST") && e.contains("/books/{bookId}/comments/{commentId}/delete"));
     }
 
     @Test
@@ -85,22 +85,14 @@ class SpringContextTest {
     }
 
     @Test
-    void httpRequestsGoThroughServletsServicesAndRepositories() {
-        ResponseEntity<Map> books = http.getForEntity("/books?size=5", Map.class);
+    void httpRequestsReturnRenderedPages() {
+        ResponseEntity<String> books = http.getForEntity("/books?size=5", String.class);
         assertThat(books.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(books.getBody()).containsEntry("size", 5).containsEntry("total", 12);
+        assertThat(books.getBody()).contains("Кобзар").contains("Сторінка 1 з 3");
 
-        ResponseEntity<Map> missing = http.getForEntity("/books/999", Map.class);
+        ResponseEntity<String> missing = http.getForEntity("/books/999/comments", String.class);
         assertThat(missing.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(missing.getBody()).containsEntry("message", "Book with id=999 not found");
-
-        ResponseEntity<Map> unknown = http.getForEntity("/nope", Map.class);
-        assertThat(unknown.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(unknown.getBody()).containsEntry("status", 404);
-
-        ResponseEntity<String> page = http.getForEntity("/", String.class);
-        assertThat(page.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(page.getBody()).contains("Каталог книг");
+        assertThat(missing.getBody()).contains("Book with id=999 not found");
 
         ResponseEntity<Map> info = http.getForEntity("/info", Map.class);
         assertThat(info.getBody()).containsEntry("application", "guestbook");

@@ -9,7 +9,57 @@
 | №3 | HTTP-рівень на мікрофреймворку Javalin: REST-маршрути, Context, middleware, app.exception() | гілка [`lab3`](https://github.com/alwaysfeell/guestbook/tree/lab3) |
 | №4 | Spring Boot: IoC-контейнер, біни, DI через конструктор і поле, @Bean, application.yaml | гілка [`lab4`](https://github.com/alwaysfeell/guestbook/tree/lab4) |
 | №5 | Spring MVC: контролери @RestController замість сервлетів, DispatcherServlet, @EnableWebMvc, @RestControllerAdvice, CRUD відгуків | гілка [`lab5`](https://github.com/alwaysfeell/guestbook/tree/lab5) |
+| №6 | Thymeleaf: серверний рендеринг сторінок, form binding (th:object, th:field), th:if / th:unless, фрагменти, локалізація uk / en | гілка [`lab6`](https://github.com/alwaysfeell/guestbook/tree/lab6) |
  
+---
+
+# Лабораторна робота №6 — Thymeleaf
+
+REST-контролери з Лаб 5 замінено MVC-контролерами, які повертають ім'я шаблону.
+HTML-сторінки формує Thymeleaf на сервері з даних об'єкта `Model`. Модулі core і persistence не змінювались.
+
+## Запуск
+```bash
+mvn clean install
+mvn -pl web spring-boot:run
+```
+Після старту: http://localhost:8080/books. Мова перемикається посиланнями UA / EN (параметр `?lang=`),
+вибір зберігається в cookie `lang` на 30 днів. Без cookie мова береться із заголовка `Accept-Language`
+(uk, en), для інших мов — українська.
+
+## Маршрути
+| Метод і шлях | Контролер | Шаблон |
+|---|---|---|
+| `GET /` | `HomeController` | redirect на `/books` |
+| `GET /books?q=&page=` | `BooksController.getAllBooks` | `books.html` |
+| `GET /books/add` | `BooksController.showAddForm` | `book-form.html` |
+| `POST /books/add` | `BooksController.addBook` | redirect на `/books` або `book-form.html` з помилками |
+| `GET /books/{bookId}/comments` | `CommentsController.list` | `book-comments.html` |
+| `POST /books/{bookId}/comments` | `CommentsController.add` | redirect або `book-comments.html` з помилками |
+| `POST /books/{bookId}/comments/{commentId}/delete` | `CommentsController.delete` | redirect |
+| `GET /info` | `InfoController` | JSON |
+
+## Шаблони
+```
+web/src/main/resources/
+├── messages.properties          (uk, за замовчуванням)
+├── messages_en.properties
+├── static/css/style.css
+└── templates/
+    ├── books.html
+    ├── book-form.html
+    ├── book-comments.html
+    ├── error.html
+    └── fragments/
+        ├── head.html
+        ├── header.html
+        └── footer.html
+```
+
+## Тести
+65 тестів: core — 23, persistence — 7, web — 35 (`BooksControllerTest`, `CommentsControllerTest`,
+`LocalizationTest`, `WebMvcConfigTest`, `SpringContextTest`, ArchUnit).
+
 ---
 
 # Лабораторна робота №5 — Spring MVC

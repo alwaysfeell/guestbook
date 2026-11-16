@@ -9,7 +9,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.annotation.ControllerAdvice;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
@@ -38,7 +38,7 @@ class ControllerLocationTest {
         classes()
                 .that().areAnnotatedWith(RestController.class)
                 .or().areAnnotatedWith(Controller.class)
-                .should().resideInAnyPackage("sumdu.edu.ua.web.controller..", "sumdu.edu.ua.web.error..")
+                .should().resideInAPackage("sumdu.edu.ua.web.controller..")
                 .andShould().haveSimpleNameEndingWith("Controller")
                 .check(classes);
     }
@@ -46,7 +46,7 @@ class ControllerLocationTest {
     @Test
     void controllerAdviceShouldResideInWebError() {
         classes()
-                .that().areAnnotatedWith(RestControllerAdvice.class)
+                .that().areAnnotatedWith(ControllerAdvice.class)
                 .should().resideInAPackage("sumdu.edu.ua.web.error..")
                 .check(classes);
     }
