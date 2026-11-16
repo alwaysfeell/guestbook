@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/head :: head(#{title.books})}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <h1 th:text="#{title.books}">Каталог книг</h1>
+
+    <form class="search" th:action="@{/books}" method="get">
+        <input type="search" name="q" th:value="${q}" th:placeholder="#{books.search.placeholder}">
+        <button type="submit" th:text="#{books.search}">Знайти</button>
+        <a th:if="${q != null}" th:href="@{/books}" th:text="#{books.search.reset}">Скинути</a>
+    </form>
+
+    <div th:if="${#lists.isEmpty(books)}" class="empty">
+        <p th:if="${q == null}" th:text="#{label.noBooks}">Ще немає книг.</p>
+        <p th:unless="${q == null}" th:text="#{label.notFound(${q})}">Нічого не знайдено.</p>
+    </div>
+
+    <table th:unless="${#lists.isEmpty(books)}">
+        <thead>
+        <tr>
+            <th>#</th>
+            <th th:text="#{label.title}">Назва</th>
+            <th th:text="#{label.author}">Автор</th>
+            <th th:text="#{label.year}">Рік</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="book, row : ${books}">
+            <td th:text="${page.page * page.size + row.count}">1</td>
+            <td><a th:href="@{/books/{id}/comments(id=${book.id})}" th:text="${book.title}">Кобзар</a></td>
+            <td th:text="${book.author}">Тарас Шевченко</td>
+            <td th:text="${book.pubYear}">1840</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <nav class="pager" th:if="${page.totalPages > 1}">
+        <a th:if="${page.page > 0}" th:href="@{/books(page=${page.page - 1}, q=${q})}" th:text="#{pager.prev}">← Назад</a>
+        <span th:text="#{pager.info(${page.page + 1}, ${page.totalPages})}">Сторінка 1 з 2</span>
+        <a th:if="${page.page + 1 < page.totalPages}" th:href="@{/books(page=${page.page + 1}, q=${q})}" th:text="#{pager.next}">Далі →</a>
+    </nav>
+
+    <p class="summary">
+        <span th:text="#{books.total(${page.total})}">Усього книг: 12</span>
+        <a class="button" th:href="@{/books/add}" th:text="#{label.addBook}">Додати книгу</a>
+    </p>
+</main>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>

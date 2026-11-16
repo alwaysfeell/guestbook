@@ -1,0 +1,14 @@
+<header th:fragment="header" xmlns:th="http://www.thymeleaf.org">
+    <nav class="topbar">
+        <a class="brand" th:href="@{/books}" th:text="#{app.name}">Каталог книг</a>
+        <a th:href="@{/books}" th:text="#{nav.books}">Книги</a>
+        <a th:href="@{/books/add}" th:text="#{nav.addBook}">Додати книгу</a>
+        <span class="lang">
+            <span th:text="#{nav.language} + ':'">Мова:</span>
+            <a href="?lang=uk" th:classappend="${#locale.language == 'uk'} ? 'active'">UA</a>
+            <a href="?lang=en" th:classappend="${#locale.language == 'en'} ? 'active'">EN</a>
+        </span>
+    </nav>
+    <p class="notice" th:if="${notice}" th:text="#{${notice}(${noticeArg})}">Повідомлення</p>
+    <p class="alert" th:if="${alert}" th:text="#{${alert}}">Помилка</p>
+</header>

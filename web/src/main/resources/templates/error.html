@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/head :: head(#{title.error})}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <h1 th:switch="${status}">
+        <span th:case="400" th:text="#{error.badRequest}">Некоректний запит</span>
+        <span th:case="404" th:text="#{error.notFound}">Сторінку не знайдено</span>
+        <span th:case="500" th:text="#{error.server}">Внутрішня помилка сервера</span>
+        <span th:case="*" th:text="${error}">Error</span>
+    </h1>
+    <p class="meta" th:text="#{error.status(${status})}">Код відповіді: 404</p>
+    <p class="alert" th:text="${message}">Book with id=999 not found</p>
+    <p><a class="button" th:href="@{/books}" th:text="#{error.back}">Повернутися до каталогу</a></p>
+</main>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>

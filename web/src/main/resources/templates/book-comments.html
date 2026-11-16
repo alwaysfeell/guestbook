@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/head :: head(${book.title})}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <p><a th:href="@{/books}" th:text="#{book.back}">← До каталогу</a></p>
+    <h1 th:text="${book.title}">Кобзар</h1>
+    <p class="meta">
+        <span th:text="${book.author}">Тарас Шевченко</span> ·
+        <span th:text="#{book.year(${book.pubYear})}">Рік видання: 1840</span>
+    </p>
+
+    <h2>
+        <span th:text="#{title.comments}">Відгуки</span>
+        <small th:text="#{comments.count(${comments.total})}">Відгуків: 0</small>
+    </h2>
+
+    <p class="empty" th:if="${#lists.isEmpty(comments.items)}" th:text="#{comments.empty}">Відгуків ще немає.</p>
+
+    <ul class="comments" th:unless="${#lists.isEmpty(comments.items)}">
+        <li th:each="comment : ${comments.items}">
+            <div class="comment-head">
+                <strong th:text="${comment.author}">Олена</strong>
+                <time th:text="${#temporals.format(comment.createdAt, 'dd.MM.yyyy HH:mm')}">01.01.2026 12:00</time>
+                <form th:if="${comment.createdAt.isAfter(deletableAfter)}"
+                      th:action="@{/books/{bookId}/comments/{id}/delete(bookId=${book.id}, id=${comment.id})}"
+                      method="post" class="inline">
+                    <button type="submit" class="link" th:text="#{comments.delete}">Видалити</button>
+                </form>
+                <span th:unless="${comment.createdAt.isAfter(deletableAfter)}" class="locked"
+                      th:text="#{comments.locked}">видалення недоступне</span>
+            </div>
+            <p th:text="${comment.text}">Текст відгуку</p>
+        </li>
+    </ul>
+
+    <h2 th:text="#{comments.add}">Залишити відгук</h2>
+    <form class="card" th:action="@{/books/{bookId}/comments(bookId=${book.id})}" th:object="${commentForm}"
+          method="post" novalidate>
+        <label for="author" th:text="#{comments.author}">Ваше ім'я</label>
+        <input type="text" th:field="*{author}" th:errorclass="invalid">
+        <span class="field-error" th:if="${#fields.hasErrors('author')}" th:errors="*{author}">Вкажіть ім'я</span>
+
+        <label for="text" th:text="#{comments.text}">Відгук</label>
+        <textarea rows="3" th:field="*{text}" th:errorclass="invalid"></textarea>
+        <span class="field-error" th:if="${#fields.hasErrors('text')}" th:errors="*{text}">Напишіть відгук</span>
+
+        <div class="actions">
+            <button type="submit" th:text="#{comments.submit}">Надіслати</button>
+        </div>
+    </form>
+</main>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>

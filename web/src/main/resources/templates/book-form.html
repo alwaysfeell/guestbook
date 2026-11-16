@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/head :: head(#{title.addBook})}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <h1 th:text="#{title.addBook}">Нова книга</h1>
+
+    <form class="card" th:action="@{/books/add}" th:object="${bookForm}" method="post" novalidate>
+        <p class="alert" th:each="err : ${#fields.globalErrors()}" th:text="${err}">Помилка</p>
+
+        <label for="title" th:text="#{label.title}">Назва</label>
+        <input type="text" th:field="*{title}" th:errorclass="invalid">
+        <span class="field-error" th:if="${#fields.hasErrors('title')}" th:errors="*{title}">Вкажіть назву</span>
+
+        <label for="author" th:text="#{label.author}">Автор</label>
+        <input type="text" th:field="*{author}" th:errorclass="invalid">
+        <span class="field-error" th:if="${#fields.hasErrors('author')}" th:errors="*{author}">Вкажіть автора</span>
+
+        <label for="pubYear" th:text="#{label.year}">Рік</label>
+        <input type="number" th:field="*{pubYear}" th:errorclass="invalid">
+        <span class="field-error" th:if="${#fields.hasErrors('pubYear')}" th:errors="*{pubYear}">Вкажіть рік</span>
+
+        <p class="hint" th:text="#{form.required}">Усі поля обов'язкові</p>
+        <div class="actions">
+            <button type="submit" th:text="#{form.add}">Додати</button>
+            <a th:href="@{/books}" th:text="#{form.cancel}">Скасувати</a>
+        </div>
+    </form>
+</main>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>
