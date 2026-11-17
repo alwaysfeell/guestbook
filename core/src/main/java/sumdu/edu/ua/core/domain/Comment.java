@@ -5,27 +5,39 @@ import java.util.Objects;
 
 public class Comment {
     private final long id;
-    private final long bookId;
-    private final String author;
+    private final Book book;
+    private final User user;
     private final String text;
     private final Instant createdAt;
 
-    public Comment(long id, long bookId, String author, String text, Instant createdAt) {
+    public Comment(long id, Book book, User user, String text, Instant createdAt) {
         this.id = id;
-        this.bookId = bookId;
-        this.author = author;
+        this.book = book;
+        this.user = user;
         this.text = text;
         this.createdAt = createdAt;
     }
 
     public long getId() { return id; }
-    public long getBookId() { return bookId; }
-    public String getAuthor() { return author; }
+    public Book getBook() { return book; }
+    public User getUser() { return user; }
     public String getText() { return text; }
     public Instant getCreatedAt() { return createdAt; }
 
+    public long getBookId() {
+        return book.getId();
+    }
+
+    public long getUserId() {
+        return user.getId();
+    }
+
+    public String getAuthor() {
+        return user.getUsername();
+    }
+
     public Comment withText(String newText) {
-        return new Comment(id, bookId, author, newText, createdAt);
+        return new Comment(id, book, user, newText, createdAt);
     }
 
     @Override
@@ -33,18 +45,18 @@ public class Comment {
         if (this == o) return true;
         if (!(o instanceof Comment)) return false;
         Comment other = (Comment) o;
-        return id == other.id && bookId == other.bookId && Objects.equals(author, other.author)
+        return id == other.id && getBookId() == other.getBookId() && getUserId() == other.getUserId()
                 && Objects.equals(text, other.text) && Objects.equals(createdAt, other.createdAt);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, bookId, author, text, createdAt);
+        return Objects.hash(id, getBookId(), getUserId(), text, createdAt);
     }
 
     @Override
     public String toString() {
-        return "Comment{id=" + id + ", bookId=" + bookId + ", author='" + author
+        return "Comment{id=" + id + ", bookId=" + getBookId() + ", user='" + getAuthor()
                 + "', length=" + (text == null ? 0 : text.length()) + ", createdAt=" + createdAt + "}";
     }
 }

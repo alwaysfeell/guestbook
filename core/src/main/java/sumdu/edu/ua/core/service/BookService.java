@@ -1,5 +1,6 @@
 package sumdu.edu.ua.core.service;
 
+import jakarta.transaction.Transactional;
 import sumdu.edu.ua.core.domain.Book;
 import sumdu.edu.ua.core.domain.Page;
 import sumdu.edu.ua.core.domain.PageRequest;
@@ -10,6 +11,7 @@ import sumdu.edu.ua.core.port.CatalogRepositoryPort;
 import java.time.Year;
 import java.util.List;
 
+@Transactional
 public class BookService {
     public static final List<String> SORT_FIELDS = List.of("id", "title", "author", "pubYear");
 
@@ -44,15 +46,23 @@ public class BookService {
         return repo.search(query, new PageRequest(page, size, field, ascending));
     }
 
-    public Book getById(long id) {
+    public List<Book> findAll() {
+        return repo.findAll();
+    }
+
+    public Book findById(long id) {
         requirePositiveId(id, "book id");
         return repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Book with id=" + id + " not found"));
     }
 
     public Book add(String title, String author, Integer pubYear) {
-        String t = title == null ? "" : title.trim();
-        String a = author == null ? "" : author.trim();
+        return save(new Book(0, title, author, pubYear == null ? 0 : pubYear));
+    }
+
+    public Book save(Book book) {
+        String t = book.getTitle() == null ? "" : book.getTitle().trim();
+        String a = book.getAuthor() == null ? "" : book.getAuthor().trim();
         if (t.isEmpty() || t.length() > 255) {
             throw new ValidationException("title is required (max 255 chars)");
         }
@@ -60,10 +70,19 @@ public class BookService {
             throw new ValidationException("author is required (max 255 chars)");
         }
         int currentYear = Year.now().getValue();
-        if (pubYear == null || pubYear < 1 || pubYear > currentYear) {
+        if (book.getPubYear() < 1 || book.getPubYear() > currentYear) {
             throw new ValidationException("pubYear must be between 1 and " + currentYear);
         }
-        return repo.add(t, a, pubYear);
+        if (book.getId() != 0) {
+            findById(book.getId());
+        }
+        return repo.save(new Book(book.getId(), t, a, book.getPubYear()));
+    }
+
+    public Book delete(long id) {
+        Book book = findById(id);
+        repo.deleteById(id);
+        return book;
     }
 
     static void requirePositiveId(long id, String name) {

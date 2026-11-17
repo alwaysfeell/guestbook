@@ -8,6 +8,7 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -82,6 +83,21 @@ public class BooksController {
         }
         redirect.addFlashAttribute("notice", "book.added");
         redirect.addFlashAttribute("noticeArg", saved.getTitle());
+        return "redirect:/books";
+    }
+
+    @GetMapping("/{id}")
+    public String showBook(@PathVariable long id) {
+        books.findById(id);
+        return "redirect:/books/{id}/comments";
+    }
+
+    @PostMapping("/{id}/delete")
+    public String deleteBook(@PathVariable long id, RedirectAttributes redirect) {
+        Book deleted = books.delete(id);
+        log.info("Book deleted: id={}, title='{}' (comments removed by cascade)", deleted.getId(), deleted.getTitle());
+        redirect.addFlashAttribute("notice", "book.deleted");
+        redirect.addFlashAttribute("noticeArg", deleted.getTitle());
         return "redirect:/books";
     }
 }

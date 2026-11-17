@@ -10,6 +10,9 @@
         <span th:text="${book.author}">Тарас Шевченко</span> ·
         <span th:text="#{book.year(${book.pubYear})}">Рік видання: 1840</span>
     </p>
+    <form class="book-actions" th:action="@{/books/{id}/delete(id=${book.id})}" method="post">
+        <button type="submit" class="danger" th:text="#{book.delete}">Видалити книгу</button>
+    </form>
 
     <h2>
         <span th:text="#{title.comments}">Відгуки</span>
@@ -21,7 +24,7 @@
     <ul class="comments" th:unless="${#lists.isEmpty(comments.items)}">
         <li th:each="comment : ${comments.items}">
             <div class="comment-head">
-                <strong th:text="${comment.author}">Олена</strong>
+                <a class="author" th:href="@{/users/{id}/comments(id=${comment.userId})}" th:text="${comment.author}">olena</a>
                 <time th:text="${#temporals.format(comment.createdAt, 'dd.MM.yyyy HH:mm')}">01.01.2026 12:00</time>
                 <form th:if="${comment.createdAt.isAfter(deletableAfter)}"
                       th:action="@{/books/{bookId}/comments/{id}/delete(bookId=${book.id}, id=${comment.id})}"
@@ -38,9 +41,12 @@
     <h2 th:text="#{comments.add}">Залишити відгук</h2>
     <form class="card" th:action="@{/books/{bookId}/comments(bookId=${book.id})}" th:object="${commentForm}"
           method="post" novalidate>
-        <label for="author" th:text="#{comments.author}">Ваше ім'я</label>
-        <input type="text" th:field="*{author}" th:errorclass="invalid">
-        <span class="field-error" th:if="${#fields.hasErrors('author')}" th:errors="*{author}">Вкажіть ім'я</span>
+        <label for="userId" th:text="#{comments.user}">Користувач</label>
+        <select th:field="*{userId}" th:errorclass="invalid">
+            <option value="" th:text="#{comments.chooseUser}">— оберіть користувача —</option>
+            <option th:each="u : ${users}" th:value="${u.id}" th:text="${u.username}">olena</option>
+        </select>
+        <span class="field-error" th:if="${#fields.hasErrors('userId')}" th:errors="*{userId}">Оберіть користувача</span>
 
         <label for="text" th:text="#{comments.text}">Відгук</label>
         <textarea rows="3" th:field="*{text}" th:errorclass="invalid"></textarea>

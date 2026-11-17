@@ -16,6 +16,7 @@ import sumdu.edu.ua.core.domain.Comment;
 import sumdu.edu.ua.core.exception.ConflictException;
 import sumdu.edu.ua.core.service.BookService;
 import sumdu.edu.ua.core.service.CommentService;
+import sumdu.edu.ua.core.service.UserService;
 import sumdu.edu.ua.web.form.CommentForm;
 
 import java.time.Clock;
@@ -29,11 +30,13 @@ public class CommentsController {
 
     private final BookService books;
     private final CommentService comments;
+    private final UserService users;
     private final Clock clock;
 
-    public CommentsController(BookService books, CommentService comments, Clock clock) {
+    public CommentsController(BookService books, CommentService comments, UserService users, Clock clock) {
         this.books = books;
         this.comments = comments;
+        this.users = users;
         this.clock = clock;
     }
 
@@ -54,8 +57,8 @@ public class CommentsController {
             fillPage(bookId, model);
             return "book-comments";
         }
-        Comment c = comments.add(bookId, form.getAuthor(), form.getText());
-        log.info("Comment created: id={}, bookId={}, author='{}', length={}",
+        Comment c = comments.add(bookId, form.getUserId(), form.getText());
+        log.info("Comment created: id={}, bookId={}, user='{}', length={}",
                 c.getId(), c.getBookId(), c.getAuthor(), c.getText().length());
         redirect.addFlashAttribute("notice", "comments.added");
         return "redirect:/books/{bookId}/comments";
@@ -67,7 +70,7 @@ public class CommentsController {
                          RedirectAttributes redirect) {
         try {
             Comment c = comments.delete(bookId, commentId);
-            log.info("Comment deleted: id={}, bookId={}, author='{}'", c.getId(), c.getBookId(), c.getAuthor());
+            log.info("Comment deleted: id={}, bookId={}, user='{}'", c.getId(), c.getBookId(), c.getAuthor());
             redirect.addFlashAttribute("notice", "comments.deleted");
         } catch (ConflictException e) {
             log.warn("Comment {} of book {} was not deleted: {}", commentId, bookId, e.getMessage());
@@ -77,8 +80,9 @@ public class CommentsController {
     }
 
     private void fillPage(long bookId, Model model) {
-        model.addAttribute("book", books.getById(bookId));
+        model.addAttribute("book", books.findById(bookId));
         model.addAttribute("comments", comments.list(bookId, 0, PAGE_SIZE));
+        model.addAttribute("users", users.findAll());
         model.addAttribute("deletableAfter", Instant.now(clock).minus(comments.getDeleteWindow()));
     }
 }
