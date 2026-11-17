@@ -17,6 +17,7 @@ import sumdu.edu.ua.core.domain.Page;
 import sumdu.edu.ua.core.exception.ValidationException;
 import sumdu.edu.ua.core.service.BookService;
 import sumdu.edu.ua.web.form.BookForm;
+import sumdu.edu.ua.web.mail.MailService;
 
 import java.time.Clock;
 import java.time.Year;
@@ -27,10 +28,12 @@ public class BooksController {
     private static final Logger log = LoggerFactory.getLogger(BooksController.class);
 
     private final BookService books;
+    private final MailService mailService;
     private final Clock clock;
 
-    public BooksController(BookService books, Clock clock) {
+    public BooksController(BookService books, MailService mailService, Clock clock) {
         this.books = books;
+        this.mailService = mailService;
         this.clock = clock;
     }
 
@@ -72,6 +75,11 @@ public class BooksController {
             return "book-form";
         }
         log.info("Book created: id={}, title='{}', author='{}'", saved.getId(), saved.getTitle(), saved.getAuthor());
+        try {
+            mailService.sendNewBookEmail(saved);
+        } catch (RuntimeException e) {
+            redirect.addFlashAttribute("alert", "mail.failed");
+        }
         redirect.addFlashAttribute("notice", "book.added");
         redirect.addFlashAttribute("noticeArg", saved.getTitle());
         return "redirect:/books";
