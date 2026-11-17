@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/head :: head(#{title.users})}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <h1 th:text="#{title.users}">Користувачі</h1>
+
+    <table>
+        <thead>
+        <tr>
+            <th>#</th>
+            <th th:text="#{users.username}">Логін</th>
+            <th th:text="#{users.role}">Роль</th>
+            <th th:text="#{users.comments}">Відгуків</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="u : ${users}">
+            <td th:text="${u.id}">1</td>
+            <td th:text="${u.username}">olena</td>
+            <td><span class="badge" th:classappend="${u.admin} ? 'admin'" th:text="#{${'role.' + u.role}}">користувач</span></td>
+            <td th:text="${commentCounts.getOrDefault(u.id, 0L)}">2</td>
+            <td><a th:href="@{/users/{id}/comments(id=${u.id})}" th:text="#{users.open}">Відгуки</a></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <p class="summary">
+        <span th:text="#{users.total(${#lists.size(users)})}">Усього користувачів: 5</span>
+    </p>
+</main>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>

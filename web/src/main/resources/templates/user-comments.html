@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/head :: head(${username})}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <p><a th:href="@{/users}" th:text="#{userComments.back}">← До списку користувачів</a></p>
+    <h1 th:text="#{title.userComments(${username})}">Коментарі користувача: olena</h1>
+    <p class="meta center">
+        <span class="badge" th:classappend="${user.admin} ? 'admin'" th:text="#{${'role.' + user.role}}">користувач</span>
+        <span th:text="#{comments.count(${#lists.size(comments)})}">Відгуків: 3</span>
+    </p>
+
+    <p class="empty" th:if="${#lists.isEmpty(comments)}" th:text="#{userComments.empty}">Відгуків ще немає.</p>
+
+    <ul class="comments" th:unless="${#lists.isEmpty(comments)}">
+        <li th:each="c : ${comments}">
+            <p><strong th:text="${#temporals.format(c.createdAt, 'dd.MM.yyyy HH:mm')}">01.01.2026 12:00</strong></p>
+            <p th:text="${c.text}">Текст відгуку</p>
+            <p class="book-link">
+                <span th:text="#{userComments.book}">Книга:</span>
+                <a th:href="@{/books/{id}(id=${c.book.id})}" th:text="${c.book.title}">Кобзар</a>
+                <span class="hint" th:text="'(' + ${c.book.author} + ', ' + ${c.book.pubYear} + ')'">(Тарас Шевченко, 1840)</span>
+            </p>
+        </li>
+    </ul>
+</main>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>

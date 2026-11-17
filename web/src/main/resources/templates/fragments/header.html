@@ -3,6 +3,7 @@
         <a class="brand" th:href="@{/books}" th:text="#{app.name}">Каталог книг</a>
         <a th:href="@{/books}" th:text="#{nav.books}">Книги</a>
         <a th:href="@{/books/add}" th:text="#{nav.addBook}">Додати книгу</a>
+        <a th:href="@{/users}" th:text="#{nav.users}">Користувачі</a>
         <span class="lang">
             <span th:text="#{nav.language} + ':'">Мова:</span>
             <a href="?lang=uk" th:classappend="${#locale.language == 'uk'} ? 'active'">UA</a>
