@@ -8,10 +8,12 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mail.MailSendException;
 import org.springframework.test.web.servlet.MockMvc;
+import sumdu.edu.ua.core.service.CommentService;
 import sumdu.edu.ua.web.mail.MailService;
 
 import java.time.Year;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
@@ -30,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
-@SpringBootTest(properties = "app.db.url=jdbc:h2:mem:books-controller;DB_CLOSE_DELAY=-1")
+@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:books-controller;DB_CLOSE_DELAY=-1")
 @AutoConfigureMockMvc
 class BooksControllerTest {
 
@@ -39,6 +41,9 @@ class BooksControllerTest {
 
     @MockBean
     private MailService mailService;
+
+    @Autowired
+    private CommentService comments;
 
     @Test
     void listRendersBooksTemplateWithModel() throws Exception {
@@ -159,5 +164,32 @@ class BooksControllerTest {
         mvc.perform(get("/books").param("page", "-1"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString("page must be &gt;= 0")));
+    }
+
+    @Test
+    void bookUrlRedirectsToBookPage() throws Exception {
+        mvc.perform(get("/books/12"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/books/12/comments"));
+
+        mvc.perform(get("/books/999"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deletingBookRemovesItsCommentsByCascade() throws Exception {
+        assertThat(comments.list(2, 0, 10).getTotal()).isEqualTo(1);
+
+        mvc.perform(post("/books/2/delete"))
+                .andExpect(redirectedUrl("/books"))
+                .andExpect(flash().attribute("notice", "book.deleted"))
+                .andExpect(flash().attribute("noticeArg", "Захар Беркут"));
+
+        mvc.perform(get("/books/2/comments"))
+                .andExpect(status().isNotFound());
+        assertThat(comments.countByUser().values().stream().mapToLong(Long::longValue).sum()).isEqualTo(11);
+
+        mvc.perform(post("/books/2/delete"))
+                .andExpect(status().isNotFound());
     }
 }

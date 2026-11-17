@@ -1,6 +1,7 @@
 package sumdu.edu.ua.web;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -8,13 +9,17 @@ import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.util.ClassUtils;
 import sumdu.edu.ua.core.port.CatalogRepositoryPort;
 import sumdu.edu.ua.core.port.CommentRepositoryPort;
+import sumdu.edu.ua.core.port.UserRepositoryPort;
 import sumdu.edu.ua.core.service.BookService;
 import sumdu.edu.ua.core.service.CommentService;
+import sumdu.edu.ua.core.service.UserService;
 import sumdu.edu.ua.web.info.AppInfoService;
 
 import java.time.Clock;
@@ -25,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "app.db.url=jdbc:h2:mem:boot-test;DB_CLOSE_DELAY=-1")
+        properties = "spring.datasource.url=jdbc:h2:mem:boot-test;DB_CLOSE_DELAY=-1")
 class SpringContextTest {
 
     @Autowired
@@ -41,12 +46,26 @@ class SpringContextTest {
         assertThat(context.getBean(Clock.class)).isEqualTo(Clock.systemUTC());
         assertThat(context.getBean(AppInfoService.class)).isNotNull();
 
+        assertThat(context.getBean(UserService.class)).isNotNull();
+
         assertThat(ClassUtils.getUserClass(context.getBean(CatalogRepositoryPort.class)).getSimpleName())
-                .isEqualTo("JdbcBookRepository");
+                .isEqualTo("JpaCatalogRepositoryAdapter");
         assertThat(ClassUtils.getUserClass(context.getBean(CommentRepositoryPort.class)).getSimpleName())
-                .isEqualTo("JdbcCommentRepository");
-        assertThat(context.containsBean("db")).isTrue();
-        assertThat(context.containsBean("dbInit")).isTrue();
+                .isEqualTo("JpaCommentRepositoryAdapter");
+        assertThat(ClassUtils.getUserClass(context.getBean(UserRepositoryPort.class)).getSimpleName())
+                .isEqualTo("JpaUserRepositoryAdapter");
+        assertThat(context.containsBean("entityManagerFactory")).isTrue();
+        assertThat(context.containsBean("flyway")).isTrue();
+        assertThat(context.containsBean("db")).isFalse();
+        assertThat(context.containsBean("dbInit")).isFalse();
+    }
+
+    @Test
+    void servicesAreWrappedInTransactionalProxies() {
+        assertThat(AopUtils.isAopProxy(context.getBean(BookService.class))).isTrue();
+        assertThat(AopUtils.isAopProxy(context.getBean(CommentService.class))).isTrue();
+        assertThat(AopUtils.isAopProxy(context.getBean(UserService.class))).isTrue();
+        assertThat(context.getBean(PlatformTransactionManager.class)).isInstanceOf(JpaTransactionManager.class);
     }
 
     @Test
@@ -58,13 +77,15 @@ class SpringContextTest {
     @Test
     void mvcControllersAreRegistered() {
         assertThat(context.getBeansWithAnnotation(Controller.class))
-                .containsKeys("booksController", "commentsController", "homeController", "infoController");
+                .containsKeys("booksController", "commentsController", "userController", "homeController", "infoController");
         assertThat(context.getBeansWithAnnotation(RestController.class)).isEmpty();
-        assertThat(context.getBeansOfType(ServletRegistrationBean.class)).containsOnlyKeys("dispatcherServletRegistration");
+        assertThat(context.getBeansOfType(ServletRegistrationBean.class)).containsOnlyKeys("dispatcherServletRegistration", "h2Console");
         assertThat(context.getBean(AppInfoService.class).endpoints())
                 .anyMatch(e -> e.startsWith("GET") && e.contains("/books/add"))
                 .anyMatch(e -> e.startsWith("POST") && e.contains("/books/{bookId}/comments"))
-                .anyMatch(e -> e.startsWith("POST") && e.contains("/books/{bookId}/comments/{commentId}/delete"));
+                .anyMatch(e -> e.startsWith("POST") && e.contains("/books/{bookId}/comments/{commentId}/delete"))
+                .anyMatch(e -> e.startsWith("GET") && e.contains("/users/{id}/comments"))
+                .anyMatch(e -> e.startsWith("POST") && e.contains("/books/{id}/delete"));
     }
 
     @Test

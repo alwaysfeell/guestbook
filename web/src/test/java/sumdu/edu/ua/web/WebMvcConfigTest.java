@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "app.db.url=jdbc:h2:mem:mvc-config;DB_CLOSE_DELAY=-1")
+        properties = "spring.datasource.url=jdbc:h2:mem:mvc-config;DB_CLOSE_DELAY=-1")
 class WebMvcConfigTest {
 
     @Autowired

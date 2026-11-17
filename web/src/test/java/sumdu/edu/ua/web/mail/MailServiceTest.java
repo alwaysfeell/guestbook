@@ -22,7 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 
 @SpringBootTest(properties = {
-        "app.db.url=jdbc:h2:mem:mail-service;DB_CLOSE_DELAY=-1",
+        "spring.datasource.url=jdbc:h2:mem:mail-service;DB_CLOSE_DELAY=-1",
         "spring.mail.host=localhost",
         "spring.mail.port=3025",
         "spring.mail.properties.mail.smtp.auth=false",

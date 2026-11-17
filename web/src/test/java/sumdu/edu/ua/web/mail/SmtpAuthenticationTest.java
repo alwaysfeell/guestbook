@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(properties = {
-        "app.db.url=jdbc:h2:mem:smtp-auth;DB_CLOSE_DELAY=-1",
+        "spring.datasource.url=jdbc:h2:mem:smtp-auth;DB_CLOSE_DELAY=-1",
         "spring.mail.host=localhost",
         "spring.mail.port=3025",
         "spring.mail.username=bookapp@bookapp.test",

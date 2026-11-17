@@ -14,7 +14,7 @@ import org.springframework.web.servlet.ViewResolver;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(properties = "app.db.url=jdbc:h2:mem:mail-config;DB_CLOSE_DELAY=-1")
+@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:mail-config;DB_CLOSE_DELAY=-1")
 class MailConfigTest {
 
     @Autowired

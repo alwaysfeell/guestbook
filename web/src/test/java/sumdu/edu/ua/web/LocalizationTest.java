@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 
-@SpringBootTest(properties = "app.db.url=jdbc:h2:mem:localization;DB_CLOSE_DELAY=-1")
+@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:localization;DB_CLOSE_DELAY=-1")
 @AutoConfigureMockMvc
 class LocalizationTest {
 

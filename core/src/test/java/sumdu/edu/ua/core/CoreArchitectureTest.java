@@ -51,6 +51,25 @@ class CoreArchitectureTest {
     }
 
     @Test
+    void coreShouldNotDependOnJpaOrHibernate() {
+        noClasses()
+                .that().resideInAPackage("sumdu.edu.ua.core..")
+                .should().dependOnClassesThat()
+                .resideInAnyPackage("jakarta.persistence..", "org.hibernate..", "org.flywaydb..")
+                .because("сутності JPA і міграції належать модулю persistence")
+                .check(core);
+    }
+
+    @Test
+    void servicesShouldBeTransactional() {
+        classes()
+                .that().resideInAPackage("sumdu.edu.ua.core.service..")
+                .and().haveSimpleNameEndingWith("Service")
+                .should().beAnnotatedWith(jakarta.transaction.Transactional.class)
+                .check(core);
+    }
+
+    @Test
     void portsShouldBeInterfaces() {
         classes()
                 .that().resideInAPackage("sumdu.edu.ua.core.port..")
@@ -71,6 +90,7 @@ class CoreArchitectureTest {
     void coreClassesShouldHavePublicConstructors() {
         constructors()
                 .that().areDeclaredInClassesThat().resideInAPackage("sumdu.edu.ua.core..")
+                .and().areDeclaredInClassesThat().areNotEnums()
                 .should().bePublic()
                 .check(core);
     }

@@ -1,4 +1,4 @@
-# Guestbook — каталог книг і відгуки (Maven + Spring Boot / Spring MVC + JDBC/H2)
+# Guestbook — каталог книг і відгуки (Maven + Spring Boot / Spring MVC + Spring Data JPA/H2)
 
 Репозиторій: https://github.com/alwaysfeell/guestbook
 
@@ -11,7 +11,84 @@
 | №5 | Spring MVC: контролери @RestController замість сервлетів, DispatcherServlet, @EnableWebMvc, @RestControllerAdvice, CRUD відгуків | гілка [`lab5`](https://github.com/alwaysfeell/guestbook/tree/lab5) |
 | №6 | Thymeleaf: серверний рендеринг сторінок, form binding (th:object, th:field), th:if / th:unless, фрагменти, локалізація uk / en | гілка [`lab6`](https://github.com/alwaysfeell/guestbook/tree/lab6) |
 | №7 | FreeMarker: HTML-листи з шаблонів .ftl (header / footer, умовні блоки, списки), надсилання через Gmail SMTP (JavaMailSender) | гілка [`lab7`](https://github.com/alwaysfeell/guestbook/tree/lab7) |
+| №8 | JPA/Hibernate замість JDBC: сутності BookEntity / UserEntity / CommentEntity, зв'язки One-To-Many / Many-To-One, Spring Data репозиторії, міграції Flyway, сторінка коментарів користувача | гілка [`lab8`](https://github.com/alwaysfeell/guestbook/tree/lab8) |
  
+---
+
+# Лабораторна робота №8 — JPA, Hibernate, Flyway і сторінка коментарів користувача
+
+Шар persistence переведено з JDBC на Spring Data JPA (Hibernate 6). Схему БД створюють міграції Flyway,
+а не `schema.sql`. З'явилась сутність користувача: кожен відгук належить книзі і користувачу,
+а сторінка `/users/{id}/comments` показує всі відгуки одного користувача.
+
+## Запуск
+```bash
+mvn clean install
+mvn -pl web spring-boot:run
+```
+Під час старту Flyway застосовує міграції `V1__init.sql` і `V2__seed_data.sql` до файлової бази
+`./data/library.mv.db`. Hibernate виводить усі SQL-запити в консоль (`spring.jpa.show-sql=true`).
+
+| Адреса | Сторінка |
+|---|---|
+| http://localhost:8080/books | Каталог книг |
+| http://localhost:8080/books/{id}/comments | Книга, її відгуки і форма нового відгуку |
+| http://localhost:8080/users | Користувачі і кількість їхніх відгуків |
+| http://localhost:8080/users/{id}/comments | Коментарі користувача |
+| http://localhost:8080/h2-console | H2 Console: JDBC URL `jdbc:h2:file:./data/library;AUTO_SERVER=TRUE`, user `sa`, пароль порожній |
+
+## Налаштування (`web/src/main/resources/application.yaml`)
+```yaml
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/library;AUTO_SERVER=TRUE
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  h2:
+    console:
+      enabled: true
+```
+
+## Модуль persistence
+```
+persistence/src/main/
+├── java/sumdu/edu/ua/persistence/
+│   ├── config/JpaConfig.java                  @EntityScan, @EnableJpaRepositories
+│   ├── entity/
+│   │   ├── BookEntity.java                    @OneToMany(mappedBy = "book")
+│   │   ├── UserEntity.java                    @OneToMany(mappedBy = "user")
+│   │   └── CommentEntity.java                 @ManyToOne book, @ManyToOne user
+│   ├── repository/
+│   │   ├── BookRepository.java                JpaRepository<BookEntity, Long>
+│   │   ├── UserRepository.java                JpaRepository<UserEntity, Long>
+│   │   └── CommentRepository.java             findByUserId(Long userId)
+│   └── adapter/
+│       ├── EntityMapper.java
+│       ├── JpaCatalogRepositoryAdapter.java   implements CatalogRepositoryPort
+│       ├── JpaUserRepositoryAdapter.java      implements UserRepositoryPort
+│       └── JpaCommentRepositoryAdapter.java   implements CommentRepositoryPort
+└── resources/db/migration/
+    ├── V1__init.sql                           таблиці users, books, comments і зовнішні ключі
+    └── V2__seed_data.sql                      5 користувачів, 12 книг, 12 відгуків
+```
+Класи JDBC (`Db`, `DbInit`, `JdbcBookRepository`, `JdbcCommentRepository`) і файли `schema.sql`, `data.sql` видалено.
+Модуль core не залежить від JPA: сервіси `BookService`, `UserService`, `CommentService` працюють через порти
+і позначені `@jakarta.transaction.Transactional`.
+
+## Тести
+`mvn clean install` — 110 тестів: core 35, persistence 17 (`@DataJpaTest` з `ddl-auto=validate` перевіряє,
+що сутності відповідають схемі Flyway), web 58 (MockMvc, сторінки користувачів, каскадне видалення,
+ArchUnit-правило «жоден модуль не використовує JDBC»).
+
 ---
 
 # Лабораторна робота №7 — FreeMarker і Gmail SMTP

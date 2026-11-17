@@ -39,6 +39,16 @@ class WebArchitectureTest {
     }
 
     @Test
+    void noModuleShouldUseJdbc() {
+        noClasses()
+                .that().resideInAPackage("sumdu.edu.ua..")
+                .should().dependOnClassesThat()
+                .resideInAnyPackage("java.sql..", "javax.sql..", "org.springframework.jdbc..", "org.h2..")
+                .because("після переходу на JPA/Hibernate жоден модуль не працює з JDBC напряму")
+                .check(classes);
+    }
+
+    @Test
     void layersShouldBeRespected() {
         layeredArchitecture()
                 .consideringOnlyDependenciesInLayers()

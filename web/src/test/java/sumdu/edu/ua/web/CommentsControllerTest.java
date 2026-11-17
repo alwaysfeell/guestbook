@@ -21,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
-@SpringBootTest(properties = "app.db.url=jdbc:h2:mem:comments-controller;DB_CLOSE_DELAY=-1")
+@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:comments-controller;DB_CLOSE_DELAY=-1")
 @AutoConfigureMockMvc
 class CommentsControllerTest {
 
@@ -36,13 +36,15 @@ class CommentsControllerTest {
         mvc.perform(get("/books/11/comments"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("book-comments"))
-                .andExpect(model().attributeExists("book", "comments", "commentForm", "deletableAfter"))
+                .andExpect(model().attributeExists("book", "comments", "commentForm", "users", "deletableAfter"))
                 .andExpect(content().string(allOf(
                         containsString("<h1>Clean Architecture</h1>"),
                         containsString("Відгуків: 2"),
-                        containsString("Андрій"),
-                        containsString("action=\"/books/11/comments/2/delete\""),
-                        containsString("видалення недоступне"))));
+                        containsString("href=\"/users/3/comments\">andriy</a>"),
+                        containsString("href=\"/users/2/comments\">olena</a>"),
+                        containsString("action=\"/books/11/comments/11/delete\""),
+                        containsString("видалення недоступне"),
+                        containsString("<option value=\"4\">vladyslav</option>"))));
     }
 
     @Test
@@ -53,41 +55,51 @@ class CommentsControllerTest {
 
     @Test
     void addAndDeleteCommentThroughForms() throws Exception {
-        mvc.perform(post("/books/3/comments").param("author", "Student").param("text", "Great play"))
+        mvc.perform(post("/books/9/comments").param("userId", "5").param("text", "Great patterns book"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/books/3/comments"))
+                .andExpect(redirectedUrl("/books/9/comments"))
                 .andExpect(flash().attribute("notice", "comments.added"));
 
-        Page<Comment> page = comments.list(3, 0, 10);
+        Page<Comment> page = comments.list(9, 0, 10);
         assertThat(page.getTotal()).isEqualTo(1);
-        long id = page.getItems().get(0).getId();
+        Comment saved = page.getItems().get(0);
+        assertThat(saved.getAuthor()).isEqualTo("iryna");
+        assertThat(saved.getBook().getTitle()).isEqualTo("Head First Design Patterns");
 
-        mvc.perform(get("/books/3/comments").header("Accept-Language", "en"))
+        mvc.perform(get("/books/9/comments").header("Accept-Language", "en"))
                 .andExpect(content().string(allOf(
-                        containsString("Great play"),
+                        containsString("Great patterns book"),
                         containsString("Reviews: 1"),
+                        containsString(">iryna</a>"),
                         containsString(">Delete<"))));
 
-        mvc.perform(post("/books/3/comments/{id}/delete", id))
-                .andExpect(redirectedUrl("/books/3/comments"))
+        mvc.perform(post("/books/9/comments/{id}/delete", saved.getId()))
+                .andExpect(redirectedUrl("/books/9/comments"))
                 .andExpect(flash().attribute("notice", "comments.deleted"));
-        assertThat(comments.list(3, 0, 10).getTotal()).isZero();
+        assertThat(comments.list(9, 0, 10).getTotal()).isZero();
     }
 
     @Test
     void invalidCommentFormShowsErrors() throws Exception {
-        mvc.perform(post("/books/3/comments").param("author", "   ").param("text", ""))
+        mvc.perform(post("/books/3/comments").param("userId", "").param("text", ""))
                 .andExpect(status().isOk())
                 .andExpect(view().name("book-comments"))
-                .andExpect(model().attributeHasFieldErrors("commentForm", "author", "text"))
+                .andExpect(model().attributeHasFieldErrors("commentForm", "userId", "text"))
                 .andExpect(content().string(allOf(
-                        containsString("Вкажіть своє ім&#39;я."),
+                        containsString("Оберіть користувача."),
                         containsString("Напишіть текст відгуку."))));
+
+        mvc.perform(post("/books/3/comments").param("userId", "abc").param("text", "text"))
+                .andExpect(model().attributeHasFieldErrorCode("commentForm", "userId", "typeMismatch"));
+
+        mvc.perform(post("/books/3/comments").param("userId", "99").param("text", "text"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(containsString("User with id=99 not found")));
     }
 
     @Test
     void oldCommentCannotBeDeleted() throws Exception {
-        mvc.perform(post("/books/11/comments/1/delete"))
+        mvc.perform(post("/books/11/comments/4/delete"))
                 .andExpect(redirectedUrl("/books/11/comments"))
                 .andExpect(flash().attribute("alert", "comments.deleteForbidden"));
 
