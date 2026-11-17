@@ -10,7 +10,63 @@
 | №4 | Spring Boot: IoC-контейнер, біни, DI через конструктор і поле, @Bean, application.yaml | гілка [`lab4`](https://github.com/alwaysfeell/guestbook/tree/lab4) |
 | №5 | Spring MVC: контролери @RestController замість сервлетів, DispatcherServlet, @EnableWebMvc, @RestControllerAdvice, CRUD відгуків | гілка [`lab5`](https://github.com/alwaysfeell/guestbook/tree/lab5) |
 | №6 | Thymeleaf: серверний рендеринг сторінок, form binding (th:object, th:field), th:if / th:unless, фрагменти, локалізація uk / en | гілка [`lab6`](https://github.com/alwaysfeell/guestbook/tree/lab6) |
+| №7 | FreeMarker: HTML-листи з шаблонів .ftl (header / footer, умовні блоки, списки), надсилання через Gmail SMTP (JavaMailSender) | гілка [`lab7`](https://github.com/alwaysfeell/guestbook/tree/lab7) |
  
+---
+
+# Лабораторна робота №7 — FreeMarker і Gmail SMTP
+
+Після додавання книги через форму `/books/add` застосунок формує HTML-лист із шаблону FreeMarker
+і надсилає його через Gmail SMTP. Сторінки сайту, як і раніше, рендерить Thymeleaf.
+
+## Налаштування пошти
+1. Увімкнути двоетапну перевірку в акаунті Google і створити App Password
+   (https://myaccount.google.com/apppasswords).
+2. Скопіювати `mail.properties.example` у корінь проєкту під назвою `mail.properties` і вписати свої дані:
+```properties
+spring.mail.username=yourmail@gmail.com
+spring.mail.password=yourpassword
+app.mail.to=yourmail@gmail.com
+```
+Файл `mail.properties` підключається через `spring.config.import` і внесений у `.gitignore`,
+тому пароль не потрапляє в репозиторій.
+
+## Запуск
+```bash
+mvn clean install
+mvn -pl web spring-boot:run
+```
+Для перевірки без Gmail можна запустити локальний SMTP-перехоплювач Mailpit (http://localhost:8025)
+і профіль `mailpit`:
+```bash
+mvn -pl web spring-boot:run -Dspring-boot.run.profiles=mailpit
+```
+
+## Файли
+```
+web/src/main/
+├── java/sumdu/edu/ua/
+│   ├── config/EmailFreemarkerConfig.java
+│   └── web/mail/
+│       ├── AppMailProperties.java
+│       ├── EmailTemplateProcessor.java
+│       └── MailService.java
+└── resources/
+    ├── application.yaml
+    ├── application-mailpit.yaml
+    ├── static/img/logo.png
+    └── mail-templates/
+        ├── new_book.ftl
+        └── layout/
+            ├── header.ftl
+            └── footer.ftl
+```
+
+## Тести
+79 тестів: core — 23, persistence — 7, web — 49. Нові: `EmailTemplateProcessorTest` (рендеринг шаблону,
+раритетне видання, формат дати, екранування HTML), `MailServiceTest` і `SmtpAuthenticationTest`
+(надсилання та помилка автентифікації на тестовому SMTP-сервері GreenMail), `MailConfigTest`.
+
 ---
 
 # Лабораторна робота №6 — Thymeleaf

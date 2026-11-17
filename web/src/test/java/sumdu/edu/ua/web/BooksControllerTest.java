@@ -4,8 +4,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.mail.MailSendException;
 import org.springframework.test.web.servlet.MockMvc;
+import sumdu.edu.ua.web.mail.MailService;
 
 import java.time.Year;
 
@@ -13,6 +16,11 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -28,6 +36,9 @@ class BooksControllerTest {
 
     @Autowired
     private MockMvc mvc;
+
+    @MockBean
+    private MailService mailService;
 
     @Test
     void listRendersBooksTemplateWithModel() throws Exception {
@@ -83,8 +94,26 @@ class BooksControllerTest {
                 .andExpect(flash().attribute("notice", "book.added"))
                 .andExpect(flash().attribute("noticeArg", "Intermezzo"));
 
+        verify(mailService).sendNewBookEmail(argThat(b -> b.getTitle().equals("Intermezzo") && b.getPubYear() == 1908));
+
         mvc.perform(get("/books").param("q", "Intermezzo"))
                 .andExpect(model().attribute("books", hasSize(1)));
+    }
+
+    @Test
+    void mailFailureKeepsBookAndShowsAlert() throws Exception {
+        doThrow(new MailSendException("535 Authentication failed")).when(mailService).sendNewBookEmail(any());
+
+        mvc.perform(post("/books/add")
+                        .param("title", "Тигролови")
+                        .param("author", "Іван Багряний")
+                        .param("pubYear", "1944"))
+                .andExpect(redirectedUrl("/books"))
+                .andExpect(flash().attribute("notice", "book.added"))
+                .andExpect(flash().attribute("alert", "mail.failed"));
+
+        mvc.perform(get("/books").param("q", "Тигролови"))
+                .andExpect(model().attribute("books", hasSize(2)));
     }
 
     @Test
@@ -110,6 +139,8 @@ class BooksControllerTest {
                 .andExpect(model().attributeHasFieldErrorCode("bookForm", "pubYear", "book.pubYear.future"))
                 .andExpect(content().string(containsString(
                         "Publication year cannot be greater than " + (next - 1) + ".")));
+
+        verify(mailService, never()).sendNewBookEmail(any());
     }
 
     @Test
