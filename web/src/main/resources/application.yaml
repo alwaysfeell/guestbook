@@ -3,6 +3,8 @@ spring:
     name: guestbook
   main:
     web-application-type: servlet
+  config:
+    import: optional:file:./mail.properties
   messages:
     basename: messages
     encoding: UTF-8
@@ -15,6 +17,27 @@ spring:
     suffix: .html
     servlet:
       content-type: text/html
+  freemarker:
+    template-loader-path: classpath:/templates/
+    charset: UTF-8
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ""
+    password: ""
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            trust: smtp.gmail.com
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
 server:
   port: 8080
@@ -31,6 +54,12 @@ app:
     default-page-size: 10
   comments:
     delete-window: 24h
+  mail:
+    to: ""
+    from: ""
+    from-name: BookApp
+    base-url: http://localhost:${server.port}
+    logo-url: https://raw.githubusercontent.com/alwaysfeell/guestbook/lab7/web/src/main/resources/static/img/logo.png
 
 logging:
   charset:

@@ -1,0 +1,3 @@
+spring.mail.username=yourmail@gmail.com
+spring.mail.password=yourpassword
+app.mail.to=yourmail@gmail.com
