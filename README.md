@@ -1,4 +1,4 @@
-# Guestbook — каталог книг і відгуки (Maven + Spring Boot / Spring MVC + Spring Data JPA/H2)
+# Guestbook — каталог книг і відгуки (Maven + Spring Boot / Spring MVC + Spring Data JPA/H2 + Spring Security)
 
 Репозиторій: https://github.com/alwaysfeell/guestbook
 
@@ -12,7 +12,85 @@
 | №6 | Thymeleaf: серверний рендеринг сторінок, form binding (th:object, th:field), th:if / th:unless, фрагменти, локалізація uk / en | гілка [`lab6`](https://github.com/alwaysfeell/guestbook/tree/lab6) |
 | №7 | FreeMarker: HTML-листи з шаблонів .ftl (header / footer, умовні блоки, списки), надсилання через Gmail SMTP (JavaMailSender) | гілка [`lab7`](https://github.com/alwaysfeell/guestbook/tree/lab7) |
 | №8 | JPA/Hibernate замість JDBC: сутності BookEntity / UserEntity / CommentEntity, зв'язки One-To-Many / Many-To-One, Spring Data репозиторії, міграції Flyway, сторінка коментарів користувача | гілка [`lab8`](https://github.com/alwaysfeell/guestbook/tree/lab8) |
+| №9 | Spring Security: форма логіну, реєстрація з підтвердженням email, ролі USER / ADMIN, власний UserDetailsService, захист /books і /api/books, @PreAuthorize, сторінки 403 / 404, аудит входу і виходу | гілка [`lab9`](https://github.com/alwaysfeell/guestbook/tree/lab9) |
  
+---
+
+# Лабораторна робота №9 — Spring Security: автентифікація та авторизація
+
+Застосунок захищено Spring Security. Користувачі завантажуються з бази даних через власний
+`AppUserDetailsService` (модуль core), паролі зберігаються як BCrypt-хеші, а доступ до сторінок,
+REST API і методів сервісів залежить від ролі `USER` або `ADMIN`.
+
+## Запуск
+```bash
+mvn clean install
+mvn -pl web spring-boot:run
+```
+Під час старту Flyway застосовує нову міграцію `V3__security.sql` (email, ознака підтвердження і код підтвердження).
+
+| Логін | Пароль | Роль |
+|---|---|---|
+| `admin` | `admin123` | ADMIN |
+| `olena`, `andriy`, `vladyslav`, `iryna` | `user123` | USER |
+
+## Права доступу
+| Ресурс | Гість | USER | ADMIN |
+|---|---|---|---|
+| `/css/**`, `/js/**`, `/images/**`, `/img/**`, `/login`, `/register`, `/confirm`, `/403`, `/404` | так | так | так |
+| `GET /books`, `GET /books/{id}/comments`, `GET /users/**` | → `/login` | так | так |
+| `POST /books/{id}/comments` (новий відгук від імені поточного користувача) | → `/login` | так | так |
+| `GET/POST /books/add`, `POST /books/{id}/delete`, `POST /books/{id}/comments/{cid}/delete`, `/info`, `/h2-console` | → `/login` | 403 | так |
+| `GET /api/books`, `GET /api/books/{id}` | 401 | так | так |
+| `POST /api/books`, `DELETE /api/books/{id}` | 401 | 403 | так |
+
+Після входу — redirect на `/books`, після виходу (`POST /logout`) — на `/login?logout`.
+
+## Реєстрація і підтвердження email
+1. `GET /register` — форма: логін, email, пароль, повтор пароля.
+2. `POST /register` — пароль хешується BCrypt, роль `USER`, акаунт вимкнений (`enabled=false`), генерується код.
+3. На email надходить лист (шаблон FreeMarker `confirm_account.ftl`) з посиланням `/confirm?code=...`.
+   Якщо SMTP не налаштовано, посилання записується в лог.
+4. До підтвердження вхід повертає `/login?disabled`; після `GET /confirm?code=...` — `/login?confirmed`.
+
+Листи надсилаються через Gmail SMTP із `mail.properties` (див. ЛР 7) або через Mailpit:
+`mvn -pl web spring-boot:run -Dspring-boot.run.profiles=mailpit`.
+
+## REST API у Postman
+Authorization → Basic Auth (`admin` / `admin123` або `olena` / `user123`). Тіло POST — raw JSON:
+```json
+{"title": "Intermezzo", "author": "Михайло Коцюбинський", "pubYear": 1908}
+```
+Без авторизації API повертає `401 Unauthorized` у форматі JSON, без потрібної ролі — `403 Forbidden`.
+Ланцюжок `/api/**` не створює HTTP-сесію і не використовує CSRF.
+
+## Нові та змінені файли
+```
+core/src/main/java/sumdu/edu/ua/core/
+├── security/AppUserDetailsService.java     implements UserDetailsService
+├── domain/User.java                        email, enabled, confirmationCode
+└── service/UserService.java                register(), confirm(), PasswordEncoder
+persistence/src/main/resources/db/migration/V3__security.sql
+web/src/main/java/sumdu/edu/ua/web/
+├── security/SecurityConfig.java            два SecurityFilterChain (API і сайт), BCrypt, @EnableMethodSecurity
+├── security/ApiSecurityHandler.java        JSON 401 / 403 для /api/**
+├── security/SecurityAuditListener.java     аудит login / logout / access denied
+├── controller/AuthController.java          /login, /register, /confirm
+├── controller/BooksApiController.java      /api/books
+└── controller/ErrorPagesController.java    /403, /404
+web/src/main/resources/templates/
+├── auth/login.html, register.html, register-success.html, confirm-error.html
+└── error/403.html, 404.html
+```
+`@PreAuthorize` у core: `BookService.add / save / delete` і `CommentService.update / delete` — `hasRole('ADMIN')`,
+`CommentService.add` — `isAuthenticated()`.
+
+## Тести
+`mvn clean install` — 159 тестів: core 45, persistence 20, web 94. Нові: `SecurityConfigTest` (правила доступу,
+логін, логаут, CSRF, кнопки за ролями), `ApiSecurityTest` (401 / 403 / 201 / 204 через Basic Auth),
+`RegistrationTest` (реєстрація, лист на GreenMail, підтвердження, вхід), `MethodSecurityTest` (`@PreAuthorize`),
+`ErrorPagesTest`, `SecurityAuditListenerTest`, `AppUserDetailsServiceTest`.
+
 ---
 
 # Лабораторна робота №8 — JPA, Hibernate, Flyway і сторінка коментарів користувача
