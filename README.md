@@ -1,4 +1,4 @@
-# Guestbook — каталог книг і відгуки (Maven + Spring Boot / Spring MVC + Spring Data JPA/H2 + Spring Security)
+# Guestbook — каталог книг і відгуки (Maven + Spring Boot / Spring MVC + Spring Data JPA/H2 + Spring Security + Spring AOP)
 
 Репозиторій: https://github.com/alwaysfeell/guestbook
 
@@ -13,7 +13,56 @@
 | №7 | FreeMarker: HTML-листи з шаблонів .ftl (header / footer, умовні блоки, списки), надсилання через Gmail SMTP (JavaMailSender) | гілка [`lab7`](https://github.com/alwaysfeell/guestbook/tree/lab7) |
 | №8 | JPA/Hibernate замість JDBC: сутності BookEntity / UserEntity / CommentEntity, зв'язки One-To-Many / Many-To-One, Spring Data репозиторії, міграції Flyway, сторінка коментарів користувача | гілка [`lab8`](https://github.com/alwaysfeell/guestbook/tree/lab8) |
 | №9 | Spring Security: форма логіну, реєстрація з підтвердженням email, ролі USER / ADMIN, власний UserDetailsService, захист /books і /api/books, @PreAuthorize, сторінки 403 / 404, аудит входу і виходу | гілка [`lab9`](https://github.com/alwaysfeell/guestbook/tree/lab9) |
+| №10 | Обробка винятків і AOP: власні винятки в core, `CommentService.delete(bookId, commentId, createdAt)`, `GlobalApiExceptionHandler` (JSON 400 / 404), аспекти логування і вимірювання часу, юніт-тести з Mockito, інтеграційний тест MockMvc | гілка [`lab10`](https://github.com/alwaysfeell/guestbook/tree/lab10) |
  
+---
+
+# Лабораторна робота №10 — обробка винятків, AOP і тестування
+
+Видалення відгуку перенесено в сервіс core: `CommentService.delete(bookId, commentId, createdAt)` перевіряє дані
+і кидає власні винятки, глобальний обробник у web перетворює їх на JSON-відповіді, а аспекти AOP логують виклики
+сервісів без змін у бізнес-коді.
+
+## Запуск
+```bash
+mvn clean install
+mvn -pl web spring-boot:run
+```
+`mvn clean install` проганяє юніт-тести (Surefire) і інтеграційні тести `*IT` (Failsafe).
+
+## Видалення відгуку `POST /comments/delete` (лише ADMIN)
+Параметри форми: `bookId`, `commentId`, `createdAt` (ISO-8601, наприклад `2026-11-18T10:00:00Z`).
+Кнопка «Видалити» на сторінці книги надсилає їх прихованими полями. Успіх — redirect на `/books/{bookId}/comments`.
+
+| Ситуація | Виняток core | Відповідь |
+|---|---|---|
+| `bookId <= 0` або `commentId <= 0` | `InvalidCommentDeleteException` | `400 {"error": "Некоректний ідентифікатор книги або коментаря"}` |
+| немає `createdAt` / дата в майбутньому / не збігається з БД | `InvalidCommentDeleteException` | `400 {"error": "..."}` |
+| відгук старший за 24 години | `CommentTooOldException` | `400 {"error": "Коментар створено більше ніж 24 години тому і не може бути видалений"}` |
+| книги немає | `BookNotFoundException` | `404 {"error": "Книгу з id=… не знайдено"}` |
+| відгуку немає | `CommentNotFoundException` | `404 {"error": "Коментар з id=… не знайдено у книзі з id=…"}` |
+
+Винятки успадковують `ValidationException`, `ConflictException` і `NotFoundException` з попередніх робіт.
+
+## AOP
+- `CommentServiceLoggingAspect` — `@Around("execution(* sumdu.edu.ua.core.service.CommentService.delete(..))")`:
+  параметри виклику, час виконання, помилка (виняток прокидається далі).
+- `ServiceTimingAspect` — `@Around("execution(* sumdu.edu.ua.core.service..*(..))")`: час кожного методу сервісів,
+  рядки `[timing] BookService.findById() took 1.25 ms`.
+
+## Додатково (+20%)
+- `CommentService.add` / `update` відхиляють текст із забороненими словами (`спам`, `казино`, `ставки`, `spam`,
+  `casino`) винятком `ForbiddenWordsException`.
+- `MvcExceptionHandler` (`@ControllerAdvice` для HTML-контролерів) робить redirect на `/problem`
+  і показує повідомлення через flash-атрибути.
+
+## Тести
+`mvn clean install` — 185 тестів: core 58, persistence 20, web 102 і 5 інтеграційних.
+`CommentServiceTest` (JUnit 5 + Mockito: `mock`, `assertThrows`, `verifyNoInteractions`, `verify(repo).delete`),
+`CommentDeleteExceptionIT` (`@SpringBootTest(classes = AppInit.class)`, `@AutoConfigureMockMvc`, `@MockBean CommentService`),
+`CommentsControllerTest` (JSON-помилки з реальним сервісом), `AopLoggingTest` (логи аспектів),
+`MvcExceptionHandlerTest` (redirect на `/problem`).
+
 ---
 
 # Лабораторна робота №9 — Spring Security: автентифікація та авторизація
