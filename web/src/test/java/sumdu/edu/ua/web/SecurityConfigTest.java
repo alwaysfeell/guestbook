@@ -137,7 +137,8 @@ class SecurityConfigTest {
                 .andExpect(status().isForbidden());
         mvc.perform(post("/books/1/delete").with(csrf()))
                 .andExpect(status().isForbidden());
-        mvc.perform(post("/books/12/comments/10/delete").with(csrf()))
+        mvc.perform(post("/comments/delete").with(csrf())
+                        .param("bookId", "12").param("commentId", "10").param("createdAt", "2026-01-01T00:00:00Z"))
                 .andExpect(status().isForbidden());
         mvc.perform(get("/info"))
                 .andExpect(status().isForbidden());

@@ -90,7 +90,7 @@ class SpringContextTest {
         assertThat(context.getBean(AppInfoService.class).endpoints())
                 .anyMatch(e -> e.startsWith("GET") && e.contains("/books/add"))
                 .anyMatch(e -> e.startsWith("POST") && e.contains("/books/{bookId}/comments"))
-                .anyMatch(e -> e.startsWith("POST") && e.contains("/books/{bookId}/comments/{commentId}/delete"))
+                .anyMatch(e -> e.startsWith("POST") && e.contains("/comments/delete"))
                 .anyMatch(e -> e.startsWith("GET") && e.contains("/users/{id}/comments"))
                 .anyMatch(e -> e.startsWith("POST") && e.contains("/books/{id}/delete"));
     }

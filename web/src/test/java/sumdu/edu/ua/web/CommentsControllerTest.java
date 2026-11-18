@@ -4,11 +4,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import sumdu.edu.ua.core.domain.Comment;
 import sumdu.edu.ua.core.domain.Page;
 import sumdu.edu.ua.core.service.CommentService;
+
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -21,6 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -48,7 +53,8 @@ class CommentsControllerTest {
                         containsString("Відгуків: 2"),
                         containsString("href=\"/users/3/comments\">andriy</a>"),
                         containsString("href=\"/users/2/comments\">olena</a>"),
-                        containsString("action=\"/books/11/comments/11/delete\""),
+                        containsString("action=\"/comments/delete\""),
+                        containsString("name=\"commentId\" value=\"11\""),
                         containsString("видалення недоступне"),
                         containsString("action=\"/books/11/delete\""),
                         containsString("Автор відгуку:"),
@@ -64,7 +70,7 @@ class CommentsControllerTest {
                         containsString("<h1>Clean Architecture</h1>"),
                         containsString("<strong>olena</strong>"),
                         containsString("action=\"/books/11/comments\""),
-                        not(containsString("/books/11/comments/11/delete")),
+                        not(containsString("/comments/delete")),
                         not(containsString("action=\"/books/11/delete\"")),
                         not(containsString("видалення недоступне")))));
     }
@@ -97,12 +103,14 @@ class CommentsControllerTest {
                         containsString(">iryna</a>"),
                         containsString(">Delete<"))));
 
-        mvc.perform(post("/books/9/comments/{id}/delete", saved.getId()).with(user("iryna").roles("USER")).with(csrf()))
+        mvc.perform(deleteRequest(9, saved.getId(), saved.getCreatedAt().toString())
+                        .with(user("iryna").roles("USER")))
                 .andExpect(status().isForbidden())
                 .andExpect(forwardedUrl("/403"));
         assertThat(comments.list(9, 0, 10).getTotal()).isEqualTo(1);
 
-        mvc.perform(post("/books/9/comments/{id}/delete", saved.getId()).with(user("admin").roles("ADMIN")).with(csrf()))
+        mvc.perform(deleteRequest(9, saved.getId(), saved.getCreatedAt().toString())
+                        .with(user("admin").roles("ADMIN")))
                 .andExpect(redirectedUrl("/books/9/comments"))
                 .andExpect(flash().attribute("notice", "comments.deleted"));
         assertThat(comments.list(9, 0, 10).getTotal()).isZero();
@@ -131,13 +139,49 @@ class CommentsControllerTest {
 
     @Test
     @WithMockUser(username = "admin", roles = "ADMIN")
-    void oldCommentCannotBeDeleted() throws Exception {
-        mvc.perform(post("/books/11/comments/4/delete").with(csrf()))
-                .andExpect(redirectedUrl("/books/11/comments"))
-                .andExpect(flash().attribute("alert", "comments.deleteForbidden"));
+    void oldCommentCannotBeDeletedAndErrorIsJson() throws Exception {
+        Comment old = comments.list(11, 0, 10).getItems().stream()
+                .filter(c -> c.getId() == 4).findFirst().orElseThrow();
 
-        mvc.perform(get("/books/11/comments").flashAttr("alert", "comments.deleteForbidden"))
-                .andExpect(content().string(containsString(
-                        "Відгук можна видалити лише протягом 24 годин після створення.")));
+        mvc.perform(deleteRequest(11, 4, old.getCreatedAt().toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.error")
+                        .value("Коментар створено більше ніж 24 години тому і не може бути видалений"));
+
+        mvc.perform(deleteRequest(11, 4, Instant.now().minusSeconds(60).toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Дата створення не збігається з датою коментаря"));
+
+        assertThat(comments.list(11, 0, 10).getItems()).extracting(Comment::getId).contains(4L);
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMIN")
+    void invalidDeleteParametersGiveJsonErrors() throws Exception {
+        String recent = Instant.now().minusSeconds(60).toString();
+
+        mvc.perform(deleteRequest(0, 11, recent))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Некоректний ідентифікатор книги або коментаря"));
+
+        mvc.perform(post("/comments/delete").with(csrf()).param("bookId", "11").param("commentId", "11"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Не вказано дату створення коментаря (createdAt)"));
+
+        mvc.perform(deleteRequest(999, 11, recent))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Книгу з id=999 не знайдено"));
+
+        mvc.perform(deleteRequest(11, 777, recent))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Коментар з id=777 не знайдено у книзі з id=11"));
+    }
+
+    private static MockHttpServletRequestBuilder deleteRequest(long bookId, long commentId, String createdAt) {
+        return post("/comments/delete").with(csrf())
+                .param("bookId", String.valueOf(bookId))
+                .param("commentId", String.valueOf(commentId))
+                .param("createdAt", createdAt);
     }
 }

@@ -59,11 +59,12 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth -> auth
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/img/**", "/favicon.ico").permitAll()
                         .requestMatchers("/login", "/register", "/confirm").permitAll()
-                        .requestMatchers("/403", "/404", "/error").permitAll()
+                        .requestMatchers("/403", "/404", "/error", "/problem").permitAll()
                         .requestMatchers(PathRequest.toH2Console()).hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/books/add").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/books/**", "/users/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/books/*/comments").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/comments/delete").hasRole("ADMIN")
                         .requestMatchers("/books/**", "/info").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .formLogin(form -> form

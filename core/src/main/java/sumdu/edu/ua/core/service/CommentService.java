@@ -1,11 +1,18 @@
 package sumdu.edu.ua.core.service;
 
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
 import sumdu.edu.ua.core.domain.Comment;
 import sumdu.edu.ua.core.domain.Page;
 import sumdu.edu.ua.core.domain.PageRequest;
+import sumdu.edu.ua.core.exception.BookNotFoundException;
+import sumdu.edu.ua.core.exception.CommentNotFoundException;
+import sumdu.edu.ua.core.exception.CommentTooOldException;
 import sumdu.edu.ua.core.exception.ConflictException;
+import sumdu.edu.ua.core.exception.ForbiddenWordsException;
+import sumdu.edu.ua.core.exception.InvalidCommentDeleteException;
 import sumdu.edu.ua.core.exception.NotFoundException;
 import sumdu.edu.ua.core.exception.ValidationException;
 import sumdu.edu.ua.core.port.CatalogRepositoryPort;
@@ -16,11 +23,15 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Transactional
 public class CommentService {
+    private static final Logger log = LoggerFactory.getLogger(CommentService.class);
     public static final Duration DELETE_WINDOW = Duration.ofHours(24);
+    public static final Set<String> FORBIDDEN_WORDS = Set.of("спам", "казино", "ставки", "spam", "casino");
 
     private final CommentRepositoryPort comments;
     private final CatalogRepositoryPort books;
@@ -88,10 +99,36 @@ public class CommentService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
-    public Comment delete(long bookId, long commentId) {
-        Comment comment = requireEditable(bookId, commentId, "deleted");
+    public void delete(long bookId, long commentId, Instant createdAt) {
+        if (bookId <= 0 || commentId <= 0) {
+            log.warn("Invalid delete request: bookId={}, commentId={}", bookId, commentId);
+            throw new InvalidCommentDeleteException("Некоректний ідентифікатор книги або коментаря");
+        }
+        if (createdAt == null) {
+            log.warn("Delete request without createdAt: bookId={}, commentId={}", bookId, commentId);
+            throw new InvalidCommentDeleteException("Не вказано дату створення коментаря (createdAt)");
+        }
+        Instant now = Instant.now(clock);
+        if (createdAt.isAfter(now)) {
+            throw new InvalidCommentDeleteException("Дата створення коментаря не може бути в майбутньому");
+        }
+        if (Duration.between(createdAt, now).compareTo(deleteWindow) > 0) {
+            log.warn("Comment is too old to delete: bookId={}, commentId={}, createdAt={}", bookId, commentId, createdAt);
+            throw new CommentTooOldException("Коментар створено більше ніж " + describeUk(deleteWindow)
+                    + " тому і не може бути видалений");
+        }
+        if (books.findById(bookId).isEmpty()) {
+            throw new BookNotFoundException("Книгу з id=" + bookId + " не знайдено");
+        }
+        Comment comment = comments.findById(bookId, commentId)
+                .orElseThrow(() -> new CommentNotFoundException(
+                        "Коментар з id=" + commentId + " не знайдено у книзі з id=" + bookId));
+        if (!comment.getCreatedAt().equals(createdAt)) {
+            log.warn("createdAt mismatch: bookId={}, commentId={}, sent={}, stored={}",
+                    bookId, commentId, createdAt, comment.getCreatedAt());
+            throw new InvalidCommentDeleteException("Дата створення не збігається з датою коментаря");
+        }
         comments.delete(bookId, commentId);
-        return comment;
     }
 
     private Comment requireEditable(long bookId, long commentId, String action) {
@@ -114,7 +151,17 @@ public class CommentService {
         if (t.isEmpty() || t.length() > 1000) {
             throw new ValidationException("text is required (max 1000 chars)");
         }
+        requireAllowedWords(t);
         return t;
+    }
+
+    private static void requireAllowedWords(String text) {
+        for (String word : text.toLowerCase(Locale.ROOT).split("[^\\p{L}\\p{N}]+")) {
+            if (FORBIDDEN_WORDS.contains(word)) {
+                log.warn("Comment rejected: forbidden word '{}'", word);
+                throw new ForbiddenWordsException("Коментар містить заборонене слово «" + word + "»");
+            }
+        }
     }
 
     private static String describe(Duration window) {
@@ -124,6 +171,30 @@ public class CommentService {
         }
         long minutes = Math.max(1, window.toMinutes());
         return minutes + (minutes == 1 ? " minute" : " minutes");
+    }
+
+    private static String describeUk(Duration window) {
+        if (window.toMinutesPart() == 0 && window.toSecondsPart() == 0) {
+            long hours = window.toHours();
+            return hours + " " + plural(hours, "годину", "години", "годин");
+        }
+        long minutes = Math.max(1, window.toMinutes());
+        return minutes + " " + plural(minutes, "хвилину", "хвилини", "хвилин");
+    }
+
+    private static String plural(long n, String one, String few, String many) {
+        long mod100 = n % 100;
+        long mod10 = n % 10;
+        if (mod100 >= 11 && mod100 <= 14) {
+            return many;
+        }
+        if (mod10 == 1) {
+            return one;
+        }
+        if (mod10 >= 2 && mod10 <= 4) {
+            return few;
+        }
+        return many;
     }
 
     private void requireBook(long bookId) {

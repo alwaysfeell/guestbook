@@ -29,8 +29,10 @@
                 <time th:text="${#temporals.format(comment.createdAt, 'dd.MM.yyyy HH:mm')}">01.01.2026 12:00</time>
                 <th:block sec:authorize="hasRole('ADMIN')">
                     <form th:if="${comment.createdAt.isAfter(deletableAfter)}"
-                          th:action="@{/books/{bookId}/comments/{id}/delete(bookId=${book.id}, id=${comment.id})}"
-                          method="post" class="inline">
+                          th:action="@{/comments/delete}" method="post" class="inline">
+                        <input type="hidden" name="bookId" th:value="${book.id}">
+                        <input type="hidden" name="commentId" th:value="${comment.id}">
+                        <input type="hidden" name="createdAt" th:value="${comment.createdAt}">
                         <button type="submit" class="link" th:text="#{comments.delete}">Видалити</button>
                     </form>
                     <span th:unless="${comment.createdAt.isAfter(deletableAfter)}" class="locked"

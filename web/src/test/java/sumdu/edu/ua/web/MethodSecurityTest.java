@@ -10,6 +10,8 @@ import sumdu.edu.ua.core.domain.Book;
 import sumdu.edu.ua.core.service.BookService;
 import sumdu.edu.ua.core.service.CommentService;
 
+import java.time.Instant;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -36,7 +38,7 @@ class MethodSecurityTest {
         assertThat(books.findById(1).getTitle()).isEqualTo("Кобзар");
         assertThatThrownBy(() -> books.add("T", "A", 2000)).isInstanceOf(AccessDeniedException.class);
         assertThatThrownBy(() -> books.delete(1)).isInstanceOf(AccessDeniedException.class);
-        assertThatThrownBy(() -> comments.delete(12, 10)).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> comments.delete(12, 10, Instant.now())).isInstanceOf(AccessDeniedException.class);
         assertThat(books.findById(1)).isNotNull();
     }
 
