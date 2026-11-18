@@ -22,11 +22,14 @@ import sumdu.edu.ua.persistence.repository.BookRepository;
 import sumdu.edu.ua.persistence.repository.CommentRepository;
 import sumdu.edu.ua.persistence.repository.UserRepository;
 
+import org.springframework.dao.DataIntegrityViolationException;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
 @Import({JpaCatalogRepositoryAdapter.class, JpaUserRepositoryAdapter.class, JpaCommentRepositoryAdapter.class})
@@ -45,7 +48,7 @@ class JpaRepositoriesTest {
         List<Object> versions = em.createNativeQuery(
                 "select \"version\" from \"flyway_schema_history\" where \"success\" and \"version\" is not null order by \"installed_rank\"")
                 .getResultList();
-        assertThat(versions).containsExactly("1", "2");
+        assertThat(versions).containsExactly("1", "2", "3");
         assertThat(bookRepository.count()).isEqualTo(12);
         assertThat(userRepository.count()).isEqualTo(5);
         assertThat(commentRepository.count()).isEqualTo(12);
@@ -157,5 +160,42 @@ class JpaRepositoriesTest {
         assertThat(users.findById(1)).get().extracting(User::getRole).isEqualTo(Role.ADMIN);
         User saved = users.save(new User(0, "maria", "$2a$10$hash", Role.USER));
         assertThat(users.findByUsername("maria")).get().extracting(User::getId).isEqualTo(saved.getId());
+    }
+
+    @Test
+    void securityMigrationAddsEmailsAndEnablesSeedUsers() {
+        assertThat(users.findAll()).allMatch(User::isEnabled)
+                .allMatch(u -> u.getConfirmationCode() == null)
+                .extracting(User::getEmail)
+                .containsExactly("admin@bookapp.local", "olena@bookapp.local", "andriy@bookapp.local",
+                        "vladyslav@bookapp.local", "iryna@bookapp.local");
+        assertThat(users.findByEmail("vladyslav@bookapp.local")).get()
+                .extracting(User::getUsername).isEqualTo("vladyslav");
+    }
+
+    @Test
+    void registeredUserIsStoredDisabledAndFoundByConfirmationCode() {
+        User saved = users.save(new User(0, "taras", "taras@example.com", "$2a$10$hash", Role.USER, false, "code-123"));
+        em.flush();
+        em.clear();
+
+        User pending = users.findByConfirmationCode("code-123").orElseThrow();
+        assertThat(pending.getId()).isEqualTo(saved.getId());
+        assertThat(pending.isEnabled()).isFalse();
+        assertThat(pending.getRole()).isEqualTo(Role.USER);
+
+        users.save(pending.confirmed());
+        em.flush();
+        em.clear();
+        assertThat(users.findByConfirmationCode("code-123")).isEmpty();
+        assertThat(users.findByUsername("taras")).get().extracting(User::isEnabled).isEqualTo(true);
+    }
+
+    @Test
+    void emailMustBeUnique() {
+        UserEntity duplicate = new UserEntity("olena2", "$2a$10$hash", Role.USER);
+        duplicate.setEmail("olena@bookapp.local");
+        assertThatThrownBy(() -> userRepository.saveAndFlush(duplicate))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 }

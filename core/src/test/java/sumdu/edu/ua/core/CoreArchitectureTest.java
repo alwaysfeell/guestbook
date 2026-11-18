@@ -5,9 +5,15 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
+import static com.tngtech.archunit.base.DescribedPredicate.not;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.constructors;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 class CoreArchitectureTest {
@@ -41,12 +47,41 @@ class CoreArchitectureTest {
     }
 
     @Test
-    void coreShouldNotDependOnSpring() {
+    void coreShouldDependOnlyOnSpringSecurityApi() {
         noClasses()
                 .that().resideInAPackage("sumdu.edu.ua.core..")
-                .should().dependOnClassesThat()
-                .resideInAnyPackage("org.springframework..", "jakarta.annotation..", "jakarta.inject..")
-                .because("сервіси core реєструються як біни в @Configuration-класі, без анотацій Spring")
+                .should().dependOnClassesThat(
+                        resideInAnyPackage("org.springframework..", "jakarta.annotation..", "jakarta.inject..")
+                                .and(not(resideInAPackage("org.springframework.security.."))))
+                .because("core знає лише API Spring Security (UserDetailsService, PasswordEncoder, @PreAuthorize), "
+                        + "а сервіси реєструються як біни в @Configuration-класі")
+                .check(core);
+    }
+
+    @Test
+    void userDetailsServiceShouldResideInCoreSecurity() {
+        classes()
+                .that().implement(UserDetailsService.class)
+                .should().resideInAPackage("sumdu.edu.ua.core.security..")
+                .check(core);
+    }
+
+    @Test
+    void modifyingServiceMethodsShouldBeSecured() {
+        methods()
+                .that().areDeclaredInClassesThat().resideInAPackage("sumdu.edu.ua.core.service..")
+                .and().arePublic()
+                .and().haveNameMatching("add|save|update|delete")
+                .should().beAnnotatedWith(PreAuthorize.class)
+                .check(core);
+    }
+
+    @Test
+    void onlyServicesAndSecurityUseSpringSecurity() {
+        noClasses()
+                .that().resideInAnyPackage("sumdu.edu.ua.core.domain..", "sumdu.edu.ua.core.port..",
+                        "sumdu.edu.ua.core.exception..")
+                .should().dependOnClassesThat().resideInAPackage("org.springframework..")
                 .check(core);
     }
 

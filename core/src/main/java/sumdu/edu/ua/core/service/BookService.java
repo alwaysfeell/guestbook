@@ -1,6 +1,7 @@
 package sumdu.edu.ua.core.service;
 
 import jakarta.transaction.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 import sumdu.edu.ua.core.domain.Book;
 import sumdu.edu.ua.core.domain.Page;
 import sumdu.edu.ua.core.domain.PageRequest;
@@ -56,10 +57,12 @@ public class BookService {
                 .orElseThrow(() -> new NotFoundException("Book with id=" + id + " not found"));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public Book add(String title, String author, Integer pubYear) {
         return save(new Book(0, title, author, pubYear == null ? 0 : pubYear));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public Book save(Book book) {
         String t = book.getTitle() == null ? "" : book.getTitle().trim();
         String a = book.getAuthor() == null ? "" : book.getAuthor().trim();
@@ -79,6 +82,7 @@ public class BookService {
         return repo.save(new Book(book.getId(), t, a, book.getPubYear()));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public Book delete(long id) {
         Book book = findById(id);
         repo.deleteById(id);

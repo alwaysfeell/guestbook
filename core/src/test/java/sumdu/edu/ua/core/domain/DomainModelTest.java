@@ -47,5 +47,17 @@ class DomainModelTest {
         assertFalse(IVAN.toString().contains("$2a$10$hash"));
         assertFalse(IVAN.isAdmin());
         assertTrue(new User(1, "admin", "x", Role.ADMIN).isAdmin());
+        assertTrue(IVAN.isEnabled());
+    }
+
+    @Test
+    void confirmedUserIsEnabledWithoutCode() {
+        User pending = new User(7, "taras", "taras@example.com", "$2a$10$hash", Role.USER, false, "code-7");
+        assertFalse(pending.toString().contains("code-7"));
+        User confirmed = pending.confirmed();
+        assertTrue(confirmed.isEnabled());
+        assertEquals(null, confirmed.getConfirmationCode());
+        assertEquals("taras@example.com", confirmed.getEmail());
+        assertEquals(pending, confirmed);
     }
 }

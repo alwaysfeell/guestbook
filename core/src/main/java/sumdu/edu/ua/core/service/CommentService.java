@@ -1,6 +1,7 @@
 package sumdu.edu.ua.core.service;
 
 import jakarta.transaction.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 import sumdu.edu.ua.core.domain.Comment;
 import sumdu.edu.ua.core.domain.Page;
 import sumdu.edu.ua.core.domain.PageRequest;
@@ -58,6 +59,7 @@ public class CommentService {
         return comments.findByBook(bookId, new PageRequest(page, size));
     }
 
+    @PreAuthorize("isAuthenticated()")
     public Comment add(long bookId, long userId, String text) {
         BookService.requirePositiveId(bookId, "bookId");
         BookService.requirePositiveId(userId, "userId");
@@ -77,6 +79,7 @@ public class CommentService {
         return comments.countByUser();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public Comment update(long bookId, long commentId, String text) {
         String t = normalizeText(text);
         Comment comment = requireEditable(bookId, commentId, "edited");
@@ -84,6 +87,7 @@ public class CommentService {
         return comment.withText(t);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public Comment delete(long bookId, long commentId) {
         Comment comment = requireEditable(bookId, commentId, "deleted");
         comments.delete(bookId, commentId);

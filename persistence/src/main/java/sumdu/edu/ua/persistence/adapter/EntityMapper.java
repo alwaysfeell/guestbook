@@ -17,7 +17,8 @@ final class EntityMapper {
     }
 
     static User toDomain(UserEntity e) {
-        return new User(e.getId(), e.getUsername(), e.getPassword(), e.getRole());
+        return new User(e.getId(), e.getUsername(), e.getEmail(), e.getPassword(), e.getRole(),
+                e.isEnabled(), e.getConfirmationCode());
     }
 
     static Comment toDomain(CommentEntity e) {

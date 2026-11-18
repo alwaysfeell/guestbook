@@ -36,6 +36,16 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
+    public Optional<User> findByEmail(String email) {
+        return repo.findByEmail(email).map(EntityMapper::toDomain);
+    }
+
+    @Override
+    public Optional<User> findByConfirmationCode(String code) {
+        return repo.findByConfirmationCode(code).map(EntityMapper::toDomain);
+    }
+
+    @Override
     @Transactional
     public User save(User user) {
         UserEntity entity = user.getId() == 0
@@ -44,6 +54,9 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
         entity.setUsername(user.getUsername());
         entity.setPassword(user.getPassword());
         entity.setRole(user.getRole());
+        entity.setEmail(user.getEmail());
+        entity.setEnabled(user.isEnabled());
+        entity.setConfirmationCode(user.getConfirmationCode());
         return EntityMapper.toDomain(repo.save(entity));
     }
 }

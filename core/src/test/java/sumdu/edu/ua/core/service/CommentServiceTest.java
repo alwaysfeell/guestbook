@@ -161,6 +161,8 @@ class CommentServiceTest {
         public Optional<User> findByUsername(String username) {
             return findAll().stream().filter(u -> u.getUsername().equals(username)).findFirst();
         }
+        public Optional<User> findByEmail(String email) { return Optional.empty(); }
+        public Optional<User> findByConfirmationCode(String code) { return Optional.empty(); }
         public User save(User user) { throw new UnsupportedOperationException(); }
     }
 

@@ -35,6 +35,15 @@ public class UserEntity {
     @Column(nullable = false, length = 16)
     private Role role;
 
+    @Column(unique = true, length = 128)
+    private String email;
+
+    @Column(nullable = false)
+    private boolean enabled = true;
+
+    @Column(name = "confirmation_code", unique = true, length = 64)
+    private String confirmationCode;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("createdAt DESC")
     private List<CommentEntity> comments = new ArrayList<>();
@@ -68,6 +77,15 @@ public class UserEntity {
 
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public boolean isEnabled() { return enabled; }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+    public String getConfirmationCode() { return confirmationCode; }
+    public void setConfirmationCode(String confirmationCode) { this.confirmationCode = confirmationCode; }
 
     public List<CommentEntity> getComments() { return comments; }
 }
