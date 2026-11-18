@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/head :: head(#{error.problem})}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main class="error-page">
+    <p class="error-code">!</p>
+    <h1 th:text="#{error.problem}">Дію не виконано</h1>
+    <p class="alert" th:text="${problemMessage} ?: #{error.problem.default}">Коментар містить заборонене слово</p>
+    <div class="actions centered">
+        <a class="button" th:href="@{${problemBack}}" th:text="#{error.problem.back}">Повернутися назад</a>
+        <a th:href="@{/books}" th:text="#{error.back}">Повернутися до каталогу</a>
+    </div>
+</main>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>
