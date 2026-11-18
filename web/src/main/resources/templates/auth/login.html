@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/head :: head(#{title.login})}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <h1 th:text="#{title.login}">Вхід</h1>
+
+    <form class="card auth" th:action="@{/login}" method="post">
+        <p class="notice" th:if="${param.logout}" th:text="#{login.loggedOut}">Ви вийшли з системи.</p>
+        <p class="notice" th:if="${param.confirmed}" th:text="#{login.confirmed}">Акаунт підтверджено.</p>
+        <p class="alert" th:if="${param.error}" th:text="#{login.error}">Неправильний логін або пароль.</p>
+        <p class="alert" th:if="${param.disabled}" th:text="#{login.disabled}">Акаунт ще не підтверджено.</p>
+
+        <label for="username" th:text="#{label.username}">Логін</label>
+        <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+
+        <label for="password" th:text="#{label.password}">Пароль</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+
+        <div class="actions">
+            <button type="submit" th:text="#{login.submit}">Увійти</button>
+            <span class="hint">
+                <span th:text="#{login.noAccount}">Немає акаунта?</span>
+                <a th:href="@{/register}" th:text="#{login.register}">Зареєструватися</a>
+            </span>
+        </div>
+    </form>
+</main>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>

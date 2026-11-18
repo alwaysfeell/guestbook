@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import sumdu.edu.ua.core.domain.Book;
 import sumdu.edu.ua.core.service.BookService;
@@ -20,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:mail-service;DB_CLOSE_DELAY=-1",
@@ -32,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.mail.from=bookapp@bookapp.test"
 })
 @AutoConfigureMockMvc
+@WithMockUser(username = "admin", roles = "ADMIN")
 class MailServiceTest {
 
     @RegisterExtension
@@ -48,7 +51,7 @@ class MailServiceTest {
 
     @Test
     void addingBookSendsHtmlEmail() throws Exception {
-        mvc.perform(post("/books/add")
+        mvc.perform(post("/books/add").with(csrf())
                         .param("title", "Intermezzo")
                         .param("author", "Михайло Коцюбинський")
                         .param("pubYear", "1908"))

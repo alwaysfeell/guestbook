@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mail.MailSendException;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import sumdu.edu.ua.core.service.CommentService;
 import sumdu.edu.ua.web.mail.MailService;
@@ -31,9 +32,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 @SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:books-controller;DB_CLOSE_DELAY=-1")
 @AutoConfigureMockMvc
+@WithMockUser(username = "admin", roles = "ADMIN")
 class BooksControllerTest {
 
     @Autowired
@@ -90,7 +93,7 @@ class BooksControllerTest {
 
     @Test
     void validFormAddsBookAndRedirects() throws Exception {
-        mvc.perform(post("/books/add")
+        mvc.perform(post("/books/add").with(csrf())
                         .param("title", "Intermezzo")
                         .param("author", "Михайло Коцюбинський")
                         .param("pubYear", "1908"))
@@ -109,7 +112,7 @@ class BooksControllerTest {
     void mailFailureKeepsBookAndShowsAlert() throws Exception {
         doThrow(new MailSendException("535 Authentication failed")).when(mailService).sendNewBookEmail(any());
 
-        mvc.perform(post("/books/add")
+        mvc.perform(post("/books/add").with(csrf())
                         .param("title", "Тигролови")
                         .param("author", "Іван Багряний")
                         .param("pubYear", "1944"))
@@ -123,7 +126,7 @@ class BooksControllerTest {
 
     @Test
     void invalidFormIsRenderedAgainWithLocalizedErrors() throws Exception {
-        mvc.perform(post("/books/add")
+        mvc.perform(post("/books/add").with(csrf())
                         .param("title", " ")
                         .param("author", "Author")
                         .param("pubYear", "abc"))
@@ -136,7 +139,7 @@ class BooksControllerTest {
                         containsString("value=\"Author\""))));
 
         int next = Year.now().getValue() + 1;
-        mvc.perform(post("/books/add")
+        mvc.perform(post("/books/add").with(csrf())
                         .header("Accept-Language", "en")
                         .param("title", "Future")
                         .param("author", "Author")
@@ -152,7 +155,7 @@ class BooksControllerTest {
     void errorsAreRenderedAsHtmlPage() throws Exception {
         mvc.perform(get("/books/999/comments"))
                 .andExpect(status().isNotFound())
-                .andExpect(view().name("error"))
+                .andExpect(view().name("error/404"))
                 .andExpect(content().string(allOf(
                         containsString("Сторінку не знайдено"),
                         containsString("Book with id=999 not found"))));
@@ -180,7 +183,7 @@ class BooksControllerTest {
     void deletingBookRemovesItsCommentsByCascade() throws Exception {
         assertThat(comments.list(2, 0, 10).getTotal()).isEqualTo(1);
 
-        mvc.perform(post("/books/2/delete"))
+        mvc.perform(post("/books/2/delete").with(csrf()))
                 .andExpect(redirectedUrl("/books"))
                 .andExpect(flash().attribute("notice", "book.deleted"))
                 .andExpect(flash().attribute("noticeArg", "Захар Беркут"));
@@ -189,7 +192,7 @@ class BooksControllerTest {
                 .andExpect(status().isNotFound());
         assertThat(comments.countByUser().values().stream().mapToLong(Long::longValue).sum()).isEqualTo(11);
 
-        mvc.perform(post("/books/2/delete"))
+        mvc.perform(post("/books/2/delete").with(csrf()))
                 .andExpect(status().isNotFound());
     }
 }

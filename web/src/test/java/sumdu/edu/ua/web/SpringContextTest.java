@@ -10,6 +10,10 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,6 +21,7 @@ import org.springframework.util.ClassUtils;
 import sumdu.edu.ua.core.port.CatalogRepositoryPort;
 import sumdu.edu.ua.core.port.CommentRepositoryPort;
 import sumdu.edu.ua.core.port.UserRepositoryPort;
+import sumdu.edu.ua.core.security.AppUserDetailsService;
 import sumdu.edu.ua.core.service.BookService;
 import sumdu.edu.ua.core.service.CommentService;
 import sumdu.edu.ua.core.service.UserService;
@@ -78,7 +83,9 @@ class SpringContextTest {
     void mvcControllersAreRegistered() {
         assertThat(context.getBeansWithAnnotation(Controller.class))
                 .containsKeys("booksController", "commentsController", "userController", "homeController", "infoController");
-        assertThat(context.getBeansWithAnnotation(RestController.class)).isEmpty();
+        assertThat(context.getBeansWithAnnotation(RestController.class)).containsOnlyKeys("booksApiController");
+        assertThat(context.getBeansWithAnnotation(Controller.class))
+                .containsKeys("authController", "errorPagesController", "booksApiController");
         assertThat(context.getBeansOfType(ServletRegistrationBean.class)).containsOnlyKeys("dispatcherServletRegistration", "h2Console");
         assertThat(context.getBean(AppInfoService.class).endpoints())
                 .anyMatch(e -> e.startsWith("GET") && e.contains("/books/add"))
@@ -86,6 +93,19 @@ class SpringContextTest {
                 .anyMatch(e -> e.startsWith("POST") && e.contains("/books/{bookId}/comments/{commentId}/delete"))
                 .anyMatch(e -> e.startsWith("GET") && e.contains("/users/{id}/comments"))
                 .anyMatch(e -> e.startsWith("POST") && e.contains("/books/{id}/delete"));
+    }
+
+    @Test
+    void securityBeansAreConfigured() {
+        assertThat(context.getBean(PasswordEncoder.class)).isInstanceOf(BCryptPasswordEncoder.class);
+        assertThat(context.getBean(UserDetailsService.class)).isInstanceOf(AppUserDetailsService.class);
+        assertThat(context.getBeansOfType(SecurityFilterChain.class))
+                .containsOnlyKeys("apiSecurityFilterChain", "webSecurityFilterChain");
+        assertThat(context.getBean(AppInfoService.class).endpoints())
+                .anyMatch(e -> e.startsWith("GET") && e.contains("/login"))
+                .anyMatch(e -> e.startsWith("POST") && e.contains("/register"))
+                .anyMatch(e -> e.startsWith("GET") && e.contains("/confirm"))
+                .anyMatch(e -> e.startsWith("DELETE") && e.contains("/api/books/{id}"));
     }
 
     @Test
@@ -106,16 +126,24 @@ class SpringContextTest {
     }
 
     @Test
-    void httpRequestsReturnRenderedPages() {
+    void guestSeesLoginPageInsteadOfCatalog() {
         ResponseEntity<String> books = http.getForEntity("/books?size=5", String.class);
         assertThat(books.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(books.getBody()).contains("Кобзар").contains("Сторінка 1 з 3");
+        assertThat(books.getBody()).contains("<h1>Вхід</h1>").doesNotContain("Кобзар");
+    }
 
-        ResponseEntity<String> missing = http.getForEntity("/books/999/comments", String.class);
+    @Test
+    void apiRequestsOverRealHttpUseBasicAuthentication() {
+        ResponseEntity<Map> guest = http.getForEntity("/api/books", Map.class);
+        assertThat(guest.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(guest.getBody()).containsEntry("status", 401);
+
+        ResponseEntity<Map> admin = http.withBasicAuth("admin", "admin123").getForEntity("/api/books?size=5", Map.class);
+        assertThat(admin.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(admin.getBody()).containsEntry("total", 12);
+
+        ResponseEntity<Map> missing = http.withBasicAuth("olena", "user123").getForEntity("/api/books/999", Map.class);
         assertThat(missing.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(missing.getBody()).contains("Book with id=999 not found");
-
-        ResponseEntity<Map> info = http.getForEntity("/info", Map.class);
-        assertThat(info.getBody()).containsEntry("application", "guestbook");
+        assertThat(missing.getBody()).containsEntry("message", "Book with id=999 not found");
     }
 }

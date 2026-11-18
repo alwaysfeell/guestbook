@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:lang="${#locale.language}">
 <head th:replace="~{fragments/head :: head(#{title.books})}"></head>
 <body>
 <header th:replace="~{fragments/header :: header}"></header>
@@ -44,7 +45,7 @@
 
     <p class="summary">
         <span th:text="#{books.total(${page.total})}">Усього книг: 12</span>
-        <a class="button" th:href="@{/books/add}" th:text="#{label.addBook}">Додати книгу</a>
+        <a class="button" sec:authorize="hasRole('ADMIN')" th:href="@{/books/add}" th:text="#{label.addBook}">Додати книгу</a>
     </p>
 </main>
 <footer th:replace="~{fragments/footer :: footer}"></footer>

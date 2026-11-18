@@ -93,4 +93,23 @@ class EmailTemplateProcessorTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("new_book.ftl");
     }
+
+    @Test
+    void rendersConfirmationEmailWithLink() {
+        Map<String, Object> model = new HashMap<>();
+        model.put("username", "taras");
+        model.put("email", "taras@example.com");
+        model.put("confirmUrl", "http://localhost:8080/confirm?code=abc-123");
+        model.put("catalogUrl", "http://localhost:8080/books");
+        model.put("logoUrl", LOGO);
+        model.put("registered", Date.from(LocalDateTime.of(2026, 11, 18, 15, 30).atZone(ZoneId.systemDefault()).toInstant()));
+
+        String html = processor.process("confirm_account.ftl", model);
+        assertThat(html)
+                .contains("Підтвердження реєстрації")
+                .contains("Вітаємо, <b>taras</b>!")
+                .contains("href=\"http://localhost:8080/confirm?code=abc-123\"")
+                .contains("Дата реєстрації: 2026-11-18 15:30")
+                .contains("BookApp &copy;");
+    }
 }

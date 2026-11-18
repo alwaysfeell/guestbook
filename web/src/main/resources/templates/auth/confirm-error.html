@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/head :: head(#{title.confirm})}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <h1 th:text="#{title.confirm}">Підтвердження акаунта</h1>
+    <div class="card auth">
+        <p class="alert" th:text="#{confirm.error}">Посилання недійсне або вже використане.</p>
+        <div class="actions">
+            <a class="button" th:href="@{/login}" th:text="#{register.toLogin}">До сторінки входу</a>
+            <a th:href="@{/register}" th:text="#{login.register}">Зареєструватися</a>
+        </div>
+    </div>
+</main>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>

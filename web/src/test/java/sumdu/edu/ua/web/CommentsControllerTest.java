@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import sumdu.edu.ua.core.domain.Comment;
 import sumdu.edu.ua.core.domain.Page;
@@ -12,10 +13,14 @@ import sumdu.edu.ua.core.service.CommentService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -32,11 +37,12 @@ class CommentsControllerTest {
     private CommentService comments;
 
     @Test
-    void bookPageShowsCommentsAndConditionalDeleteButton() throws Exception {
+    @WithMockUser(username = "admin", roles = "ADMIN")
+    void adminSeesCommentsWithDeleteButtons() throws Exception {
         mvc.perform(get("/books/11/comments"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("book-comments"))
-                .andExpect(model().attributeExists("book", "comments", "commentForm", "users", "deletableAfter"))
+                .andExpect(model().attributeExists("book", "comments", "commentForm", "deletableAfter"))
                 .andExpect(content().string(allOf(
                         containsString("<h1>Clean Architecture</h1>"),
                         containsString("Відгуків: 2"),
@@ -44,18 +50,36 @@ class CommentsControllerTest {
                         containsString("href=\"/users/2/comments\">olena</a>"),
                         containsString("action=\"/books/11/comments/11/delete\""),
                         containsString("видалення недоступне"),
-                        containsString("<option value=\"4\">vladyslav</option>"))));
+                        containsString("action=\"/books/11/delete\""),
+                        containsString("Автор відгуку:"),
+                        not(containsString("<select")))));
     }
 
     @Test
+    @WithMockUser(username = "olena", roles = "USER")
+    void userSeesCommentsWithoutAdminButtons() throws Exception {
+        mvc.perform(get("/books/11/comments"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(allOf(
+                        containsString("<h1>Clean Architecture</h1>"),
+                        containsString("<strong>olena</strong>"),
+                        containsString("action=\"/books/11/comments\""),
+                        not(containsString("/books/11/comments/11/delete")),
+                        not(containsString("action=\"/books/11/delete\"")),
+                        not(containsString("видалення недоступне")))));
+    }
+
+    @Test
+    @WithMockUser(username = "olena", roles = "USER")
     void emptyCommentListShowsMessage() throws Exception {
         mvc.perform(get("/books/5/comments"))
                 .andExpect(content().string(containsString("Відгуків ще немає. Будьте першим!")));
     }
 
     @Test
-    void addAndDeleteCommentThroughForms() throws Exception {
-        mvc.perform(post("/books/9/comments").param("userId", "5").param("text", "Great patterns book"))
+    void commentAuthorIsTheLoggedInUser() throws Exception {
+        mvc.perform(post("/books/9/comments").with(user("iryna").roles("USER")).with(csrf())
+                        .param("text", "Great patterns book"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/books/9/comments"))
                 .andExpect(flash().attribute("notice", "comments.added"));
@@ -66,40 +90,49 @@ class CommentsControllerTest {
         assertThat(saved.getAuthor()).isEqualTo("iryna");
         assertThat(saved.getBook().getTitle()).isEqualTo("Head First Design Patterns");
 
-        mvc.perform(get("/books/9/comments").header("Accept-Language", "en"))
+        mvc.perform(get("/books/9/comments").with(user("admin").roles("ADMIN")).header("Accept-Language", "en"))
                 .andExpect(content().string(allOf(
                         containsString("Great patterns book"),
                         containsString("Reviews: 1"),
                         containsString(">iryna</a>"),
                         containsString(">Delete<"))));
 
-        mvc.perform(post("/books/9/comments/{id}/delete", saved.getId()))
+        mvc.perform(post("/books/9/comments/{id}/delete", saved.getId()).with(user("iryna").roles("USER")).with(csrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(forwardedUrl("/403"));
+        assertThat(comments.list(9, 0, 10).getTotal()).isEqualTo(1);
+
+        mvc.perform(post("/books/9/comments/{id}/delete", saved.getId()).with(user("admin").roles("ADMIN")).with(csrf()))
                 .andExpect(redirectedUrl("/books/9/comments"))
                 .andExpect(flash().attribute("notice", "comments.deleted"));
         assertThat(comments.list(9, 0, 10).getTotal()).isZero();
     }
 
     @Test
+    @WithMockUser(username = "olena", roles = "USER")
     void invalidCommentFormShowsErrors() throws Exception {
-        mvc.perform(post("/books/3/comments").param("userId", "").param("text", ""))
+        mvc.perform(post("/books/3/comments").with(csrf()).param("text", ""))
                 .andExpect(status().isOk())
                 .andExpect(view().name("book-comments"))
-                .andExpect(model().attributeHasFieldErrors("commentForm", "userId", "text"))
-                .andExpect(content().string(allOf(
-                        containsString("Оберіть користувача."),
-                        containsString("Напишіть текст відгуку."))));
+                .andExpect(model().attributeHasFieldErrors("commentForm", "text"))
+                .andExpect(content().string(containsString("Напишіть текст відгуку.")));
 
-        mvc.perform(post("/books/3/comments").param("userId", "abc").param("text", "text"))
-                .andExpect(model().attributeHasFieldErrorCode("commentForm", "userId", "typeMismatch"));
-
-        mvc.perform(post("/books/3/comments").param("userId", "99").param("text", "text"))
+        mvc.perform(post("/books/99/comments").with(csrf()).param("text", "text"))
                 .andExpect(status().isNotFound())
-                .andExpect(content().string(containsString("User with id=99 not found")));
+                .andExpect(content().string(containsString("Book with id=99 not found")));
     }
 
     @Test
+    void commentFormWithoutCsrfTokenIsRejected() throws Exception {
+        mvc.perform(post("/books/3/comments").with(user("olena").roles("USER")).param("text", "text"))
+                .andExpect(status().isForbidden());
+        assertThat(comments.list(3, 0, 10).getTotal()).isEqualTo(1);
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMIN")
     void oldCommentCannotBeDeleted() throws Exception {
-        mvc.perform(post("/books/11/comments/4/delete"))
+        mvc.perform(post("/books/11/comments/4/delete").with(csrf()))
                 .andExpect(redirectedUrl("/books/11/comments"))
                 .andExpect(flash().attribute("alert", "comments.deleteForbidden"));
 

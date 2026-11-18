@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/head :: head(#{title.register})}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <h1 th:text="#{title.register}">Реєстрація</h1>
+
+    <form class="card auth" th:action="@{/register}" th:object="${registerForm}" method="post" novalidate>
+        <p class="alert" th:each="err : ${#fields.globalErrors()}" th:text="${err}">Помилка</p>
+
+        <label for="username" th:text="#{label.username}">Логін</label>
+        <input type="text" th:field="*{username}" th:errorclass="invalid" autocomplete="username">
+        <span class="field-error" th:if="${#fields.hasErrors('username')}" th:errors="*{username}">Вкажіть логін</span>
+
+        <label for="email" th:text="#{label.email}">Email</label>
+        <input type="email" th:field="*{email}" th:errorclass="invalid" autocomplete="email">
+        <span class="field-error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}">Вкажіть email</span>
+
+        <label for="password" th:text="#{label.password}">Пароль</label>
+        <input type="password" th:field="*{password}" th:errorclass="invalid" autocomplete="new-password">
+        <span class="field-error" th:if="${#fields.hasErrors('password')}" th:errors="*{password}">Вкажіть пароль</span>
+
+        <label for="confirmPassword" th:text="#{label.confirmPassword}">Повторіть пароль</label>
+        <input type="password" th:field="*{confirmPassword}" th:errorclass="invalid" autocomplete="new-password">
+        <span class="field-error" th:if="${#fields.hasErrors('confirmPassword')}" th:errors="*{confirmPassword}">Паролі не збігаються</span>
+
+        <p class="hint" th:text="#{register.hint}">Після реєстрації на email прийде лист з посиланням для підтвердження.</p>
+        <div class="actions">
+            <button type="submit" th:text="#{register.submit}">Зареєструватися</button>
+            <a th:href="@{/login}" th:text="#{register.haveAccount}">Вже є акаунт? Увійти</a>
+        </div>
+    </form>
+</main>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>

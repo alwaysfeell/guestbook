@@ -15,6 +15,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import sumdu.edu.ua.core.domain.Book;
 import sumdu.edu.ua.core.domain.Page;
+import sumdu.edu.ua.core.domain.User;
 import sumdu.edu.ua.core.service.BookService;
 
 import java.io.UnsupportedEncodingException;
@@ -29,6 +30,7 @@ public class MailService {
     private static final Logger log = LoggerFactory.getLogger(MailService.class);
 
     public static final String NEW_BOOK_TEMPLATE = "new_book.ftl";
+    public static final String CONFIRM_TEMPLATE = "confirm_account.ftl";
     private static final int RECENT_LIMIT = 3;
 
     private final JavaMailSender mailSender;
@@ -55,6 +57,26 @@ public class MailService {
     public void sendNewBookEmail(Book book) {
         String html = templateProcessor.process(NEW_BOOK_TEMPLATE, newBookModel(book));
         sendHtml(recipient(), "Нова книга в каталозі: " + book.getTitle(), html);
+    }
+
+    public void sendConfirmationEmail(User user) {
+        String html = templateProcessor.process(CONFIRM_TEMPLATE, confirmationModel(user));
+        sendHtml(user.getEmail(), "Підтвердження реєстрації в каталозі книг", html);
+    }
+
+    public String confirmationLink(User user) {
+        return props.baseUrl() + "/confirm?code=" + user.getConfirmationCode();
+    }
+
+    public Map<String, Object> confirmationModel(User user) {
+        Map<String, Object> model = new HashMap<>();
+        model.put("username", user.getUsername());
+        model.put("email", user.getEmail());
+        model.put("confirmUrl", confirmationLink(user));
+        model.put("catalogUrl", props.baseUrl() + "/books");
+        model.put("logoUrl", props.logoUrl());
+        model.put("registered", Date.from(clock.instant()));
+        return model;
     }
 
     public Map<String, Object> newBookModel(Book book) {

@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -27,6 +28,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     public ModelAndView noRoute(NoResourceFoundException ex, HttpServletRequest req) {
         return error(HttpStatus.NOT_FOUND, "No route for " + req.getMethod() + " " + req.getRequestURI(), req);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ModelAndView accessDenied(AccessDeniedException ex, HttpServletRequest req) {
+        return error(HttpStatus.FORBIDDEN, ex.getMessage(), req);
     }
 
     @ExceptionHandler(ValidationException.class)
@@ -65,11 +71,19 @@ public class GlobalExceptionHandler {
     }
 
     private static ModelAndView view(HttpStatus status, String message, HttpServletRequest req) {
-        ModelAndView mav = new ModelAndView("error", status);
+        ModelAndView mav = new ModelAndView(viewName(status), status);
         mav.addObject("status", status.value());
         mav.addObject("error", status.getReasonPhrase());
         mav.addObject("message", message);
         mav.addObject("path", req.getRequestURI());
         return mav;
+    }
+
+    private static String viewName(HttpStatus status) {
+        return switch (status) {
+            case FORBIDDEN -> "error/403";
+            case NOT_FOUND -> "error/404";
+            default -> "error";
+        };
     }
 }

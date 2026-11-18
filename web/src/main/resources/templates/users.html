@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:lang="${#locale.language}">
 <head th:replace="~{fragments/head :: head(#{title.users})}"></head>
 <body>
 <header th:replace="~{fragments/header :: header}"></header>
@@ -11,7 +12,9 @@
         <tr>
             <th>#</th>
             <th th:text="#{users.username}">Логін</th>
+            <th sec:authorize="hasRole('ADMIN')" th:text="#{users.email}">Email</th>
             <th th:text="#{users.role}">Роль</th>
+            <th sec:authorize="hasRole('ADMIN')" th:text="#{users.status}">Статус</th>
             <th th:text="#{users.comments}">Відгуків</th>
             <th></th>
         </tr>
@@ -20,7 +23,12 @@
         <tr th:each="u : ${users}">
             <td th:text="${u.id}">1</td>
             <td th:text="${u.username}">olena</td>
+            <td sec:authorize="hasRole('ADMIN')" th:text="${u.email}">olena@bookapp.local</td>
             <td><span class="badge" th:classappend="${u.admin} ? 'admin'" th:text="#{${'role.' + u.role}}">користувач</span></td>
+            <td sec:authorize="hasRole('ADMIN')">
+                <span th:if="${u.enabled}" class="status ok" th:text="#{users.enabled}">активний</span>
+                <span th:unless="${u.enabled}" class="status pending" th:text="#{users.pending}">не підтверджено</span>
+            </td>
             <td th:text="${commentCounts.getOrDefault(u.id, 0L)}">2</td>
             <td><a th:href="@{/users/{id}/comments(id=${u.id})}" th:text="#{users.open}">Відгуки</a></td>
         </tr>

@@ -7,7 +7,6 @@ import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguratio
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.ApplicationContext;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -44,31 +43,23 @@ class WebMvcConfigTest {
     }
 
     @Test
-    void rootRedirectsToCatalogPage() {
+    void guestIsRedirectedFromRootToLoginPage() {
         ResponseEntity<String> page = http.getForEntity("/", String.class);
         assertThat(page.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(page.getHeaders().getContentType().isCompatibleWith(MediaType.TEXT_HTML)).isTrue();
-        assertThat(page.getBody()).contains("<h1>Каталог книг</h1>");
+        assertThat(page.getBody()).contains("<h1>Вхід</h1>").contains("name=\"_csrf\"");
     }
 
     @Test
-    void staticStylesheetIsServed() {
+    void staticStylesheetIsServedWithoutLogin() {
         ResponseEntity<String> css = http.getForEntity("/css/style.css", String.class);
         assertThat(css.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(css.getHeaders().getContentType().isCompatibleWith(MediaType.valueOf("text/css"))).isTrue();
     }
 
     @Test
-    void unknownUrlRendersHtmlErrorPage() {
-        ResponseEntity<String> resp = http.getForEntity("/nope", String.class);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(resp.getBody()).contains("Сторінку не знайдено").contains("No route for GET /nope");
-    }
-
-    @Test
-    void unsupportedMethodIsHandledByErrorTemplate() {
-        ResponseEntity<String> resp = http.exchange("/books", HttpMethod.DELETE, null, String.class);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED);
-        assertThat(resp.getBody()).contains("Method Not Allowed").contains("Код відповіді: 405");
+    void loginAndRegisterPagesArePublic() {
+        assertThat(http.getForEntity("/login", String.class).getBody()).contains("action=\"/login\"");
+        assertThat(http.getForEntity("/register", String.class).getBody()).contains("<h1>Реєстрація</h1>");
     }
 }

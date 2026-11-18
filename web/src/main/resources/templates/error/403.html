@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:lang="${#locale.language}">
+<head th:replace="~{fragments/head :: head(#{error.forbidden})}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main class="error-page">
+    <p class="error-code">403</p>
+    <h1 th:text="#{error.forbidden}">Доступ заборонено</h1>
+    <p class="meta" th:text="#{error.status(403)}">Код відповіді: 403</p>
+    <p class="alert" sec:authorize="isAuthenticated()"
+       th:text="#{error.forbidden.user(${#authentication.name})}">Користувач olena не має прав на цю дію.</p>
+    <p class="alert" sec:authorize="isAnonymous()" th:text="#{error.forbidden.anonymous}">Увійдіть, щоб продовжити.</p>
+    <p class="hint" th:if="${path}" th:text="#{error.path(${path})}">Адреса: /books/add</p>
+    <p><a class="button" th:href="@{/books}" th:text="#{error.back}">Повернутися до каталогу</a></p>
+</main>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>

@@ -5,7 +5,10 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.web.AuthenticationEntryPoint;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 
@@ -45,6 +48,15 @@ class WebArchitectureTest {
                 .should().dependOnClassesThat()
                 .resideInAnyPackage("java.sql..", "javax.sql..", "org.springframework.jdbc..", "org.h2..")
                 .because("після переходу на JPA/Hibernate жоден модуль не працює з JDBC напряму")
+                .check(classes);
+    }
+
+    @Test
+    void securityConfigurationShouldResideInWebSecurity() {
+        classes()
+                .that().areAnnotatedWith(EnableWebSecurity.class)
+                .or().implement(AuthenticationEntryPoint.class)
+                .should().resideInAPackage("sumdu.edu.ua.web.security..")
                 .check(classes);
     }
 

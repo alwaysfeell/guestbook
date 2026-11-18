@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head th:replace="~{fragments/head :: head(#{title.register})}"></head>
+<body>
+<header th:replace="~{fragments/header :: header}"></header>
+<main>
+    <h1 th:text="#{register.success.title}">Майже готово!</h1>
+    <div class="card auth">
+        <p class="notice" th:text="#{register.success(${username})}">Користувача taras зареєстровано з роллю USER.</p>
+        <p th:if="${mailSent}" th:text="#{register.mailSent(${email})}">Лист надіслано.</p>
+        <p class="alert" th:unless="${mailSent}" th:text="#{register.mailFailed}">Лист не надіслано.</p>
+        <p class="hint" th:text="#{register.success.hint}">До підтвердження увійти не вийде.</p>
+        <div class="actions">
+            <a class="button" th:href="@{/login}" th:text="#{register.toLogin}">До сторінки входу</a>
+        </div>
+    </div>
+</main>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>

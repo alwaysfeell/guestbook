@@ -3,6 +3,7 @@ package sumdu.edu.ua.web.controller;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -60,6 +61,7 @@ public class BooksController {
     @PostMapping("/add")
     public String addBook(@Valid @ModelAttribute("bookForm") BookForm form,
                           BindingResult result,
+                          Authentication authentication,
                           RedirectAttributes redirect) {
         int currentYear = Year.now(clock).getValue();
         if (form.getPubYear() != null && form.getPubYear() > currentYear) {
@@ -75,7 +77,8 @@ public class BooksController {
             result.reject("book.rejected", new Object[]{e.getMessage()}, e.getMessage());
             return "book-form";
         }
-        log.info("Book created: id={}, title='{}', author='{}'", saved.getId(), saved.getTitle(), saved.getAuthor());
+        log.info("Book created by '{}': id={}, title='{}', author='{}'",
+                authentication.getName(), saved.getId(), saved.getTitle(), saved.getAuthor());
         try {
             mailService.sendNewBookEmail(saved);
         } catch (RuntimeException e) {
@@ -93,9 +96,10 @@ public class BooksController {
     }
 
     @PostMapping("/{id}/delete")
-    public String deleteBook(@PathVariable long id, RedirectAttributes redirect) {
+    public String deleteBook(@PathVariable long id, Authentication authentication, RedirectAttributes redirect) {
         Book deleted = books.delete(id);
-        log.info("Book deleted: id={}, title='{}' (comments removed by cascade)", deleted.getId(), deleted.getTitle());
+        log.info("Book deleted by '{}': id={}, title='{}' (comments removed by cascade)",
+                authentication.getName(), deleted.getId(), deleted.getTitle());
         redirect.addFlashAttribute("notice", "book.deleted");
         redirect.addFlashAttribute("noticeArg", deleted.getTitle());
         return "redirect:/books";
