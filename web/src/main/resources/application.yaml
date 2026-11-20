@@ -6,33 +6,31 @@ spring:
   config:
     import: optional:file:./mail.properties
   datasource:
-    url: jdbc:h2:file:./data/library;AUTO_SERVER=TRUE
-    username: sa
-    password: ""
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mpf_labs}
+    username: ${SPRING_DATASOURCE_USERNAME:mpf_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:mpf_pass}
+    hikari:
+      maximum-pool-size: 5
   sql:
     init:
       mode: never
   jpa:
     hibernate:
-      ddl-auto: none
-    show-sql: true
+      ddl-auto: validate
+    show-sql: false
     open-in-view: false
-    properties:
-      hibernate:
-        format_sql: true
   flyway:
     enabled: true
     locations: classpath:db/migration
   h2:
     console:
-      enabled: true
-      path: /h2-console
+      enabled: false
   messages:
     basename: messages
     encoding: UTF-8
     fallback-to-system-locale: false
   thymeleaf:
-    cache: false
+    cache: true
     encoding: UTF-8
     mode: HTML
     prefix: classpath:/templates/
@@ -42,31 +40,39 @@ spring:
   freemarker:
     template-loader-path: classpath:/templates/
     charset: UTF-8
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ""
-    password: ""
-    default-encoding: UTF-8
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-          ssl:
-            trust: smtp.gmail.com
-          connectiontimeout: 10000
-          timeout: 10000
-          writetimeout: 10000
 
 server:
-  port: 8080
+  port: ${PORT:8080}
+  forward-headers-strategy: native
   servlet:
     encoding:
       charset: UTF-8
       force: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+      roles: ADMIN
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Каталог книг і відгуки
+    version: 1.0.0-SNAPSHOT
+
+mail:
+  resend:
+    api-url: https://api.resend.com/emails
+    api-key: ${RESEND_API_KEY:}
+    from: ${MAIL_FROM:BookApp <onboarding@resend.dev>}
 
 app:
   title: Каталог книг і відгуки
@@ -75,10 +81,8 @@ app:
   comments:
     delete-window: 24h
   mail:
-    to: ""
-    from: ""
-    from-name: BookApp
-    base-url: http://localhost:${server.port}
+    admin: ${APP_MAIL_ADMIN:}
+    base-url: ${APP_BASE_URL:http://localhost:${server.port}}
     logo-url: https://raw.githubusercontent.com/alwaysfeell/guestbook/lab7/web/src/main/resources/static/img/logo.png
 
 logging:
@@ -89,3 +93,5 @@ logging:
   level:
     root: INFO
     sumdu.edu.ua: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN

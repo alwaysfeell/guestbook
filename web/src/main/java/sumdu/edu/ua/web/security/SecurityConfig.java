@@ -1,6 +1,8 @@
 package sumdu.edu.ua.web.security;
 
-import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
+import org.springframework.boot.actuate.health.HealthEndpoint;
+import org.springframework.boot.actuate.info.InfoEndpoint;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,13 +20,18 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.ExceptionMappingAuthenticationFailureHandler;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import java.util.Map;
+
+import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    private static final RequestMatcher H2_CONSOLE = antMatcher("/h2-console/**");
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -57,10 +64,12 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(auth -> auth
+                        .requestMatchers(EndpointRequest.to(HealthEndpoint.class, InfoEndpoint.class)).permitAll()
+                        .requestMatchers(EndpointRequest.toAnyEndpoint()).hasRole("ADMIN")
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/img/**", "/favicon.ico").permitAll()
                         .requestMatchers("/login", "/register", "/confirm").permitAll()
                         .requestMatchers("/403", "/404", "/error", "/problem").permitAll()
-                        .requestMatchers(PathRequest.toH2Console()).hasRole("ADMIN")
+                        .requestMatchers(H2_CONSOLE).hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/books/add").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/books/**", "/users/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/books/*/comments").hasAnyRole("USER", "ADMIN")
@@ -80,7 +89,7 @@ public class SecurityConfig {
                         .logoutSuccessUrl("/login?logout")
                         .permitAll())
                 .exceptionHandling(ex -> ex.accessDeniedPage("/403"))
-                .csrf(csrf -> csrf.ignoringRequestMatchers(PathRequest.toH2Console()))
+                .csrf(csrf -> csrf.ignoringRequestMatchers(H2_CONSOLE))
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
         return http.build();
     }
