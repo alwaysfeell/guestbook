@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [deploy, main]
+  pull_request:
+    branches: [deploy, main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Run tests
+        run: mvn -B test
+
+      - name: Build web module jar
+        run: mvn -B -DskipTests package -pl web -am
+
+      - name: Upload jar
+        uses: actions/upload-artifact@v6
+        with:
+          name: web-jar
+          path: web/target/web-*.jar
+          if-no-files-found: error
