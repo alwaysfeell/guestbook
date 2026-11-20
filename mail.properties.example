@@ -1,3 +1,2 @@
-spring.mail.username=yourmail@gmail.com
-spring.mail.password=yourpassword
-app.mail.to=yourmail@gmail.com
+mail.resend.api-key=re_xxxxxxxxxxxxxxxxxxxxxxxx
+app.mail.admin=yourmail@gmail.com

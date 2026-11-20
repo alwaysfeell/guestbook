@@ -5,9 +5,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 
 @ConfigurationProperties(prefix = "app.mail")
 public record AppMailProperties(
-        @DefaultValue("") String to,
-        @DefaultValue("") String from,
-        @DefaultValue("BookApp") String fromName,
+        @DefaultValue("") String admin,
         @DefaultValue("http://localhost:8080") String baseUrl,
         @DefaultValue("") String logoUrl) {
 }

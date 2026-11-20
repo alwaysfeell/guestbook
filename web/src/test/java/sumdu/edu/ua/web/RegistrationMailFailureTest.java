@@ -5,9 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.mail.MailSendException;
 import org.springframework.test.web.servlet.MockMvc;
 import sumdu.edu.ua.core.port.UserRepositoryPort;
+import sumdu.edu.ua.web.mail.MailDeliveryException;
 import sumdu.edu.ua.web.mail.MailService;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,7 +35,7 @@ class RegistrationMailFailureTest {
 
     @Test
     void userIsSavedEvenIfEmailIsNotSent() throws Exception {
-        doThrow(new MailSendException("535 Authentication failed")).when(mailService).sendConfirmationEmail(any());
+        doThrow(new MailDeliveryException("Resend API error, status 403")).when(mailService).sendConfirmationEmail(any());
 
         mvc.perform(post("/register").with(csrf())
                         .param("username", "maria")

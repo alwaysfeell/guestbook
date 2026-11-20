@@ -6,10 +6,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.mail.MailSendException;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import sumdu.edu.ua.core.service.CommentService;
+import sumdu.edu.ua.web.mail.MailDeliveryException;
 import sumdu.edu.ua.web.mail.MailService;
 
 import java.time.Year;
@@ -110,7 +110,7 @@ class BooksControllerTest {
 
     @Test
     void mailFailureKeepsBookAndShowsAlert() throws Exception {
-        doThrow(new MailSendException("535 Authentication failed")).when(mailService).sendNewBookEmail(any());
+        doThrow(new MailDeliveryException("Resend API error, status 403")).when(mailService).sendNewBookEmail(any());
 
         mvc.perform(post("/books/add").with(csrf())
                         .param("title", "Тигролови")

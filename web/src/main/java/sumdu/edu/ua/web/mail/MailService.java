@@ -1,25 +1,25 @@
 package sumdu.edu.ua.web.mail;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.mail.MailProperties;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.event.EventListener;
-import org.springframework.core.NestedExceptionUtils;
-import org.springframework.mail.MailException;
-import org.springframework.mail.MailSendException;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.RestTemplate;
 import sumdu.edu.ua.core.domain.Book;
 import sumdu.edu.ua.core.domain.Page;
 import sumdu.edu.ua.core.domain.User;
 import sumdu.edu.ua.core.service.BookService;
 
-import java.io.UnsupportedEncodingException;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -33,30 +33,33 @@ public class MailService {
     public static final String CONFIRM_TEMPLATE = "confirm_account.ftl";
     private static final int RECENT_LIMIT = 3;
 
-    private final JavaMailSender mailSender;
+    private final RestTemplate restTemplate;
     private final EmailTemplateProcessor templateProcessor;
     private final BookService books;
     private final AppMailProperties props;
-    private final MailProperties smtp;
+    private final ResendProperties resend;
     private final Clock clock;
 
-    public MailService(JavaMailSender mailSender,
+    public MailService(RestTemplateBuilder restTemplateBuilder,
                        EmailTemplateProcessor templateProcessor,
                        BookService books,
                        AppMailProperties props,
-                       MailProperties smtp,
+                       ResendProperties resend,
                        Clock clock) {
-        this.mailSender = mailSender;
+        this.restTemplate = restTemplateBuilder
+                .setConnectTimeout(Duration.ofSeconds(10))
+                .setReadTimeout(Duration.ofSeconds(10))
+                .build();
         this.templateProcessor = templateProcessor;
         this.books = books;
         this.props = props;
-        this.smtp = smtp;
+        this.resend = resend;
         this.clock = clock;
     }
 
     public void sendNewBookEmail(Book book) {
         String html = templateProcessor.process(NEW_BOOK_TEMPLATE, newBookModel(book));
-        sendHtml(recipient(), "Нова книга в каталозі: " + book.getTitle(), html);
+        sendHtml(props.admin(), "Нова книга в каталозі: " + book.getTitle(), html);
     }
 
     public void sendConfirmationEmail(User user) {
@@ -101,53 +104,51 @@ public class MailService {
     }
 
     public void sendHtml(String to, String subject, String html) {
-        if (to.isBlank()) {
-            throw new MailSendException("Recipient is not configured: set app.mail.to or spring.mail.username");
+        if (isBlank(resend.apiKey())) {
+            log.error("Resend API key is not configured (RESEND_API_KEY). Cannot send email '{}'", subject);
+            throw new MailDeliveryException("Resend API key is not configured");
         }
+        if (isBlank(to)) {
+            log.error("Recipient is not configured (APP_MAIL_ADMIN). Cannot send email '{}'", subject);
+            throw new MailDeliveryException("Recipient is not configured: set app.mail.admin");
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(resend.apiKey());
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("from", resend.from());
+        body.put("to", List.of(to));
+        body.put("subject", subject);
+        body.put("html", html);
+
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(
-                    message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, "UTF-8");
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(html, true);
-            helper.setFrom(sender(), props.fromName());
-            mailSender.send(message);
-            log.info("Email sent to {} via {}:{} with subject '{}'", to, smtp.getHost(), smtp.getPort(), subject);
-        } catch (MessagingException | UnsupportedEncodingException | MailException e) {
-            log.error("Failed to send email to {} via {}:{}: {}", to, smtp.getHost(), smtp.getPort(),
-                    NestedExceptionUtils.getMostSpecificCause(e).getMessage());
-            throw new MailSendException("Cannot send email to " + to, e);
+            ResponseEntity<String> response =
+                    restTemplate.postForEntity(resend.apiUrl(), new HttpEntity<>(body, headers), String.class);
+            log.info("Email sent to {} via Resend with subject '{}', status {}, response {}",
+                    to, subject, response.getStatusCode().value(), response.getBody());
+        } catch (RestClientResponseException e) {
+            log.error("Resend rejected email to {}: status {}, body {}",
+                    to, e.getStatusCode().value(), e.getResponseBodyAsString());
+            throw new MailDeliveryException("Resend API error, status " + e.getStatusCode().value(), e);
+        } catch (RestClientException e) {
+            log.error("Failed to send email to {} via Resend: {}", to, e.getMessage());
+            throw new MailDeliveryException("Cannot send email to " + to, e);
         }
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void logSettings() {
-        boolean auth = Boolean.parseBoolean(smtp.getProperties().getOrDefault("mail.smtp.auth", "false"));
-        log.info("Mail: SMTP {}:{}, auth={}, from={}, to={}", smtp.getHost(), smtp.getPort(), auth,
-                blankAsDash(sender()), blankAsDash(recipient()));
-        if (auth && isBlank(smtp.getUsername())) {
-            log.warn("Mail: spring.mail.username is empty - create mail.properties in the project root (see README)");
+        log.info("Mail: Resend HTTP API {}, api key configured={}, from={}, admin={}",
+                resend.apiUrl(), !isBlank(resend.apiKey()), resend.from(), blankAsDash(props.admin()));
+        if (isBlank(resend.apiKey())) {
+            log.warn("Mail: RESEND_API_KEY is empty - emails will not be sent, confirmation links are written to the log");
         }
-    }
-
-    String recipient() {
-        return isBlank(props.to()) ? nullToEmpty(smtp.getUsername()) : props.to();
-    }
-
-    String sender() {
-        if (!isBlank(props.from())) {
-            return props.from();
-        }
-        return isBlank(smtp.getUsername()) ? "bookapp@localhost" : smtp.getUsername();
     }
 
     private static boolean isBlank(String s) {
         return s == null || s.isBlank();
-    }
-
-    private static String nullToEmpty(String s) {
-        return s == null ? "" : s;
     }
 
     private static String blankAsDash(String s) {
