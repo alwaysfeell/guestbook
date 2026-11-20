@@ -1,4 +1,4 @@
-# Guestbook — каталог книг і відгуки (Maven + Spring Boot / Spring MVC + Spring Data JPA/H2 + Spring Security + Spring AOP)
+# Guestbook — каталог книг і відгуки (Maven + Spring Boot / Spring MVC + Spring Data JPA/PostgreSQL + Spring Security + Spring AOP + Docker + Render)
 
 Репозиторій: https://github.com/alwaysfeell/guestbook
 
@@ -14,7 +14,69 @@
 | №8 | JPA/Hibernate замість JDBC: сутності BookEntity / UserEntity / CommentEntity, зв'язки One-To-Many / Many-To-One, Spring Data репозиторії, міграції Flyway, сторінка коментарів користувача | гілка [`lab8`](https://github.com/alwaysfeell/guestbook/tree/lab8) |
 | №9 | Spring Security: форма логіну, реєстрація з підтвердженням email, ролі USER / ADMIN, власний UserDetailsService, захист /books і /api/books, @PreAuthorize, сторінки 403 / 404, аудит входу і виходу | гілка [`lab9`](https://github.com/alwaysfeell/guestbook/tree/lab9) |
 | №10 | Обробка винятків і AOP: власні винятки в core, `CommentService.delete(bookId, commentId, createdAt)`, `GlobalApiExceptionHandler` (JSON 400 / 404), аспекти логування і вимірювання часу, юніт-тести з Mockito, інтеграційний тест MockMvc | гілка [`lab10`](https://github.com/alwaysfeell/guestbook/tree/lab10) |
+| Комплексна | Розгортання в хмарі: конфігурація зі змінних середовища, PostgreSQL на Render, Flyway + `ddl-auto=validate`, Dockerfile, Web Service на Render, листи через Resend HTTP API, Spring Boot Actuator, GitHub Actions | гілка [`deploy`](https://github.com/alwaysfeell/guestbook/tree/deploy) |
  
+---
+
+# Комплексна лабораторна робота — розгортання на Render
+
+Застосунок запускається в Docker-контейнері як Web Service на Render і працює з керованою базою
+PostgreSQL на Render. Усі адреси, логіни, паролі й ключі передаються через змінні середовища,
+у коді й у репозиторії секретів немає.
+
+## Інфраструктура
+| Що | Де |
+|---|---|
+| Код | GitHub, гілка `deploy` |
+| CI | GitHub Actions (`.github/workflows/ci.yml`): `mvn test`, збирання `web-*.jar`, артефакт `web-jar` |
+| Застосунок | Render Web Service, середовище Docker, `web/Dockerfile` |
+| База даних | Render PostgreSQL `mpf_labs`, підключення через Internal Database URL |
+| Пошта | Resend HTTP API (`https://api.resend.com/emails`), SMTP-порти на Render заблоковані |
+
+## Змінні середовища
+| Змінна | Призначення | Значення за замовчуванням |
+|---|---|---|
+| `SPRING_DATASOURCE_URL` | JDBC URL бази | `jdbc:postgresql://localhost:5432/mpf_labs` |
+| `SPRING_DATASOURCE_USERNAME` | користувач БД | `mpf_user` |
+| `SPRING_DATASOURCE_PASSWORD` | пароль БД | `mpf_pass` |
+| `PORT` | порт HTTP (Render задає сам) | `8080` |
+| `APP_BASE_URL` | публічна адреса для посилань у листах | `http://localhost:8080` |
+| `APP_MAIL_ADMIN` | адреса для листів про нові книги | — |
+| `RESEND_API_KEY` | API-ключ Resend | — |
+| `MAIL_FROM` | відправник | `BookApp <onboarding@resend.dev>` |
+
+Render показує Internal Database URL у форматі `postgresql://user:password@host/db`. Для Spring потрібен JDBC-формат:
+`jdbc:postgresql://host:5432/db`, а логін і пароль задаються окремими змінними.
+
+## Збирання і запуск
+```bash
+mvn clean install
+mvn -pl web spring-boot:run -Dspring-boot.run.profiles=h2
+```
+Профіль `h2` запускає застосунок локально з файловою базою H2 без встановленої PostgreSQL.
+Без профілю застосунок підключається до PostgreSQL за змінними `SPRING_DATASOURCE_*`.
+
+Docker (команди з кореня репозиторію):
+```bash
+docker build -f web/Dockerfile -t mpf-labs-web .
+docker run -p 8080:8080 -e SPRING_DATASOURCE_URL=jdbc:postgresql://... -e SPRING_DATASOURCE_USERNAME=... -e SPRING_DATASOURCE_PASSWORD=... mpf-labs-web
+```
+
+## Render
+- PostgreSQL: `mpf_labs`, версія 16, регіон Frankfurt.
+- Web Service: гілка `deploy`, Language `Docker`, Dockerfile Path `web/Dockerfile`, Docker Build Context Directory `.`,
+  Health Check Path `/actuator/health`.
+
+## Actuator
+- `GET /actuator/health` — публічний, для гостя `{"status":"UP"}`, для ADMIN — деталі `db` (PostgreSQL) і `diskSpace`.
+- `GET /actuator/info` — назва і версія застосунку.
+- Інші ендпоїнти Actuator — лише ADMIN.
+
+## Тести
+`mvn clean install` — 194 тести: core 58, persistence 20, web 111 і 5 інтеграційних.
+Нові: `ActuatorEndpointsTest`, `MailServiceTest` і `RegistrationTest` з локальною заглушкою Resend API (`ResendStub`),
+`ResendSettingsTest`.
+
 ---
 
 # Лабораторна робота №10 — обробка винятків, AOP і тестування
