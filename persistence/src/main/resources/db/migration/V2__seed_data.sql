@@ -20,15 +20,15 @@ insert into books (title, author, pub_year) values
     ('Effective Java', 'Joshua Bloch', 2018);
 
 insert into comments (book_id, user_id, text, created_at) values
-    (12, 1, 'Додано до списку рекомендованої літератури курсу.', dateadd('HOUR', -200, current_timestamp)),
-    (1, 2, 'Перечитую щороку, особливо «Заповіт».', dateadd('HOUR', -120, current_timestamp)),
-    (6, 5, 'Захоплива пригодницька історія, прочитала за два вечори.', dateadd('HOUR', -96, current_timestamp)),
-    (11, 2, 'Після неї по-іншому дивишся на залежності між модулями.', dateadd('HOUR', -72, current_timestamp)),
-    (2, 3, 'Повість про громаду, яка вміє захищати себе разом.', dateadd('HOUR', -60, current_timestamp)),
-    (10, 4, 'Must-read для кожного Java-розробника: правило бойскаута працює.', dateadd('HOUR', -50, current_timestamp)),
-    (3, 2, 'Найкраща драма-феєрія в українській літературі.', dateadd('HOUR', -30, current_timestamp)),
-    (8, 4, 'Bounded context і ubiquitous language нарешті стали зрозумілими.', dateadd('HOUR', -26, current_timestamp)),
-    (7, 3, 'Repository, Unit of Work, Data Mapper - саме те, що робить Hibernate.', dateadd('HOUR', -20, current_timestamp)),
-    (12, 4, 'Розділ про builder і immutable-класи використав у лабораторних.', dateadd('HOUR', -5, current_timestamp)),
-    (11, 3, 'Пояснює, чому бізнес-логіка не повинна залежати від БД.', dateadd('HOUR', -2, current_timestamp)),
-    (4, 5, 'Неймовірна атмосфера Карпат і гуцульських легенд.', dateadd('HOUR', -1, current_timestamp));
+    (12, 1, 'Додано до списку рекомендованої літератури курсу.', current_timestamp - interval '200' hour),
+    (1, 2, 'Перечитую щороку, особливо «Заповіт».', current_timestamp - interval '120' hour),
+    (6, 5, 'Захоплива пригодницька історія, прочитала за два вечори.', current_timestamp - interval '96' hour),
+    (11, 2, 'Після неї по-іншому дивишся на залежності між модулями.', current_timestamp - interval '72' hour),
+    (2, 3, 'Повість про громаду, яка вміє захищати себе разом.', current_timestamp - interval '60' hour),
+    (10, 4, 'Must-read для кожного Java-розробника: правило бойскаута працює.', current_timestamp - interval '50' hour),
+    (3, 2, 'Найкраща драма-феєрія в українській літературі.', current_timestamp - interval '30' hour),
+    (8, 4, 'Bounded context і ubiquitous language нарешті стали зрозумілими.', current_timestamp - interval '26' hour),
+    (7, 3, 'Repository, Unit of Work, Data Mapper - саме те, що робить Hibernate.', current_timestamp - interval '20' hour),
+    (12, 4, 'Розділ про builder і immutable-класи використав у лабораторних.', current_timestamp - interval '5' hour),
+    (11, 3, 'Пояснює, чому бізнес-логіка не повинна залежати від БД.', current_timestamp - interval '2' hour),
+    (4, 5, 'Неймовірна атмосфера Карпат і гуцульських легенд.', current_timestamp - interval '1' hour);
